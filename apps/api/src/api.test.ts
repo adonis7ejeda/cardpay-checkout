@@ -2,13 +2,14 @@ import "reflect-metadata";
 import { ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
+import type { PaymentAttemptDto } from "@cardpay/contracts";
 import request from "supertest";
 import { AppModule } from "./app.module";
 import { DeterministicFakePaymentAdapter, InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./adapters";
 import { PAYMENT_PROVIDER_PORT } from "./tokens";
 import { CreateTransactionUseCase } from "./use-cases";
 
-const attempt = (cardNumber = "4111111111111111") => ({
+const attempt = (cardNumber = "4111111111111111"): PaymentAttemptDto => ({
   identity: { fullName: "Ada Lovelace", email: "ada@example.com" },
   cartItems: [{ productId: "basic-tee", quantity: 1, unitPrice: { amount: 45000, currency: "COP" } }],
   totals: { subtotal: { amount: 45000, currency: "COP" }, total: { amount: 45000, currency: "COP" }, itemCount: 1 },
@@ -80,11 +81,11 @@ describe("checkout API", () => {
   });
 
   it("persists failed provider outcomes with safe reasons and no raw card data", async () => {
-    const response = await request(app.getHttpServer()).post("/transactions").send(attempt("4000000000000000")).expect(201);
+    const response = await request(app.getHttpServer()).post("/transactions").send(attempt("4000000000020000")).expect(201);
     const records = await repo.all();
 
     expect(response.body).toMatchObject({ status: "failed", reasonCode: "payment_declined", retryable: true });
-    expect(JSON.stringify(records)).not.toContain("4000000000000000");
+    expect(JSON.stringify(records)).not.toContain("4000000000020000");
     expect(JSON.stringify(records)).not.toContain("123");
   });
 
@@ -106,12 +107,36 @@ describe("checkout API", () => {
   });
 
   it("fails invalid request payloads before checkout orchestration", async () => {
-    await request(app.getHttpServer()).post("/transactions").send({ ...attempt(), identity: { fullName: "Ada", email: "bad-email" } }).expect(400);
+    const response = await request(app.getHttpServer()).post("/transactions").send({ ...attempt(), identity: { fullName: "Ada", email: "bad-email" } }).expect(400);
+
+    expect(response.body.message).toEqual(expect.arrayContaining([expect.stringContaining("email must be an email")]));
+  });
+
+  it("rejects invalid fake card data before checkout orchestration", async () => {
+    const execute = jest.spyOn(createTransaction, "execute");
+    const authorize = jest.spyOn(provider, "authorize");
+
+    await request(app.getHttpServer()).post("/transactions").send(attempt("0000")).expect(400);
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+  });
+
+  it("rejects incomplete fake card data before checkout orchestration", async () => {
+    const payload = attempt();
+    const execute = jest.spyOn(createTransaction, "execute");
+    const authorize = jest.spyOn(provider, "authorize");
+    delete (payload.fakeCard as Partial<typeof payload.fakeCard>).number;
+
+    await request(app.getHttpServer()).post("/transactions").send(payload).expect(400);
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
   });
 
   it.each(["identity", "cartItems", "totals", "fakeCard"] as const)("rejects missing %s before checkout orchestration", async (section) => {
-    const payload = attempt();
-    delete (payload as Record<string, unknown>)[section];
+    const payload: Partial<PaymentAttemptDto> = { ...attempt() };
+    delete payload[section];
     const execute = jest.spyOn(createTransaction, "execute");
     const authorize = jest.spyOn(provider, "authorize");
 

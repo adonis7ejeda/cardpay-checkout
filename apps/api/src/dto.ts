@@ -1,5 +1,7 @@
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsDefined, IsEmail, IsIn, IsInt, IsNotEmpty, IsNumber, IsString, Min, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsDefined, IsEmail, IsIn, IsInt, IsNotEmpty, IsNumber, IsString, Min, Validate, ValidateNested, ValidatorConstraint } from "class-validator";
+import type { ValidatorConstraintInterface } from "class-validator";
+import { validateFakeCard } from "@cardpay/core";
 
 export class MoneyRequestDto {
   @IsNumber()
@@ -69,6 +71,20 @@ export class FakeCardRequestDto {
   cvc!: string;
 }
 
+@ValidatorConstraint({ name: "isValidFakeCard", async: false })
+class ValidFakeCardConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    if (typeof value !== "object" || value === null) return false;
+    const input = value as FakeCardRequestDto;
+    if (!hasRequiredFakeCardFields(input)) return false;
+    return validateFakeCard(input).valid;
+  }
+}
+
+function hasRequiredFakeCardFields(input: Partial<FakeCardRequestDto>): input is FakeCardRequestDto {
+  return [input.cardholderName, input.number, input.expirationMonth, input.expirationYear, input.cvc].every((value) => typeof value === "string");
+}
+
 export class CreateTransactionDto {
   @IsDefined()
   @ValidateNested()
@@ -89,6 +105,7 @@ export class CreateTransactionDto {
 
   @IsDefined()
   @ValidateNested()
+  @Validate(ValidFakeCardConstraint, { message: "Valid fake Visa or Mastercard card data is required" })
   @Type(() => FakeCardRequestDto)
   fakeCard!: FakeCardRequestDto;
 }

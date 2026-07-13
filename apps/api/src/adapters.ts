@@ -30,8 +30,10 @@ export class InMemoryCatalogAdapter implements CatalogPort, StockPort {
 
 export class DeterministicFakePaymentAdapter implements PaymentProviderPort {
   async authorize(attempt: PaymentAttemptDto): Promise<TransactionResultDto> {
-    const transactionId = `fake_${hash(`${attempt.identity.email}:${attempt.totals.total.amount}:${last4(attempt.fakeCard.number)}`)}`;
-    if (last4(attempt.fakeCard.number) === "0000") {
+    const cardLast4 = last4(attempt.fakeCard.number);
+    const hashInput = [attempt.identity.email, attempt.totals.total.amount, cardLast4].join(":");
+    const transactionId = `fake_${hash(hashInput)}`;
+    if (cardLast4 === "0000") {
       return { status: "failed", transactionId, reasonCode: "payment_declined", retryable: true, message: "The card payment was declined." };
     }
 
@@ -58,6 +60,6 @@ function last4(value: string): string {
 
 function hash(value: string): string {
   let current = 0;
-  for (const char of value) current = (current * 31 + char.charCodeAt(0)) >>> 0;
+  for (const char of value) current = (current * 31 + char.codePointAt(0)!) >>> 0;
   return current.toString(16).padStart(8, "0");
 }
