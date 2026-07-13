@@ -39,9 +39,9 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: API Checkout
 
-- [ ] 3.1 Create `apps/api` Nest modules with controllers and DTO validation for `GET /catalog` and `POST /transactions`.
-- [ ] 3.2 Add Clean/Hexagonal use cases with `CatalogPort`, `StockPort`, `PaymentProviderPort`, and `TransactionRepositoryPort`.
-- [ ] 3.3 Add deterministic fake payment adapter and tests for stock rejection before provider, success persistence, failed safe reason, and deterministic provider results.
+- [x] 3.1 Create `apps/api` Nest modules with controllers and DTO validation for `GET /catalog` and `POST /transactions`.
+- [x] 3.2 Add Clean/Hexagonal use cases with `CatalogPort`, `StockPort`, `PaymentProviderPort`, and `TransactionRepositoryPort`.
+- [x] 3.3 Add deterministic fake payment adapter and tests for stock rejection before provider, success persistence, failed safe reason, and deterministic provider results.
 
 ## Phase 4: Delivery / Verification
 
