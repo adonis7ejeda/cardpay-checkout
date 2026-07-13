@@ -33,9 +33,9 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: Mobile Checkout
 
-- [ ] 2.1 Create `apps/mobile` React Native shell with Redux store, encrypted persistence boundary, API client, and 8-screen navigation.
-- [ ] 2.2 Add `ProductCard`, `StockBadge`, `QuantityStepper`, `CartSummary`, `SummaryRow`, `PrimaryButton`, `BackdropShell`, `CardForm`, `PaymentSummary`, and `TransactionStatus`.
-- [ ] 2.3 Test catalog load, offline snapshot, restart recovery, missing identity errors, invalid card blocking, backdrop cancel, success clear, and failure preserve scenarios.
+- [x] 2.1 Create `apps/mobile` React Native shell with Redux store, encrypted persistence boundary, API client, and 8-screen navigation.
+- [x] 2.2 Add `ProductCard`, `StockBadge`, `QuantityStepper`, `CartSummary`, `SummaryRow`, `PrimaryButton`, `BackdropShell`, `CardForm`, `PaymentSummary`, and `TransactionStatus`.
+- [x] 2.3 Test catalog load, offline snapshot, restart recovery, missing identity errors, invalid card blocking, backdrop cancel, success clear, and failure preserve scenarios.
 
 ## Phase 3: API Checkout
 
