@@ -1,0 +1,19 @@
+{
+  "name": "cardpay-checkout",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "install:all": "pnpm install",
+    "test": "pnpm -r test",
+    "coverage": "pnpm -r coverage",
+    "mobile": "pnpm --filter ./apps/mobile start",
+    "api": "pnpm --filter ./apps/api start:dev"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.3"
+  }
+}
