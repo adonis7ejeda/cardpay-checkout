@@ -1,9 +1,4 @@
-import { createHash } from "node:crypto";
 import type { LocalTransactionStatus, ProviderTransactionStatus } from "@cardpay/contracts";
-
-export function createProviderSignature(reference: string, amountInCents: number, currency: "COP", integritySecret: string): string {
-  return createHash("sha256").update(`${reference}${amountInCents}${currency}${integritySecret}`).digest("hex");
-}
 
 export function mapProviderStatus(status: ProviderTransactionStatus | "timeout"): LocalTransactionStatus {
   if (status === "APPROVED") return "APPROVED";

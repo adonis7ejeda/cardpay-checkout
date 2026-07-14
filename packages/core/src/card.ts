@@ -10,6 +10,13 @@ export function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+const CARDHOLDER_NAME_PATTERN = /^[\p{L}\s'-]*$/u;
+
+/** Strips characters other than letters, spaces, apostrophes, and hyphens as the user types. */
+export function sanitizeCardholderName(value: string): string {
+  return value.replace(/[^\p{L}\s'-]/gu, "");
+}
+
 export function detectCardBrand(number: string): CardBrand {
   const digits = onlyDigits(number);
   if (/^4\d{12}(\d{3})?$/.test(digits)) return "visa";
@@ -46,7 +53,9 @@ export function validateFakeCard(input: FakeCardInputDto, today = new Date()): C
   const errors: CardValidationResult["errors"] = {};
   const brand = detectCardBrand(input.number);
   if (input.cardholderName.trim().length < 2) errors.cardholderName = "Cardholder name is required";
-  if (brand === "unknown" || !passesLuhn(input.number)) errors.number = "Valid fake Visa or Mastercard number is required";
+  else if (!CARDHOLDER_NAME_PATTERN.test(input.cardholderName)) errors.cardholderName = "Cardholder name can only contain letters and spaces";
+  if (!/^[\d\s]*$/.test(input.number)) errors.number = "Card number can only contain digits";
+  else if (brand === "unknown" || !passesLuhn(input.number)) errors.number = "Valid fake Visa or Mastercard number is required";
   if (!isFutureExpiration(input.expirationMonth, input.expirationYear, today)) errors.expirationMonth = "Valid future expiration is required";
   if (!/^\d{3,4}$/.test(input.cvc)) errors.cvc = "Valid CVC is required";
   return { valid: Object.keys(errors).length === 0, brand, errors };
