@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import Config from "react-native-config";
 import { Provider } from "react-redux";
 import { HttpApiClient } from "./api";
 import { KeychainSecureStorage } from "./keychainStorage";
@@ -8,18 +9,23 @@ import { createCheckoutStore } from "./store";
 /**
  * Backend base URL, no sponsor-specific or credentialed default.
  *
- * This intentionally uses React Native's built-in `__DEV__` global instead of
- * `process.env.CARDPAY_API_BASE_URL`: Metro does not substitute
- * `process.env.*` at bundle time without a dedicated babel plugin (e.g.
- * `react-native-dotenv`), and this project's `babel.config.js` only has
- * `module:@react-native/babel-preset` -- no such plugin. `process.env.X`
- * would therefore always evaluate to `undefined` in every real build (debug
- * or release), silently falling back to `http://localhost:3000`, which on a
- * physical device resolves to the device itself, never a real backend.
- * `__DEV__` is already injected by RN's own bundler with no extra plugin.
+ * Defaults to the deployed AWS Lambda so both debug and release builds work
+ * out of the box with no setup. `react-native-config` (wired via
+ * android/app/build.gradle's dotenv.gradle apply) reads an optional, git-
+ * ignored `.env` file at build time and exposes it as `Config.*` -- copy
+ * `.env.example` to `.env` and set API_BASE_URL to point at a local backend
+ * (e.g. http://localhost:3000) instead, without editing this file. Plain
+ * `process.env.*` doesn't work here: Metro never substitutes it without a
+ * dedicated babel plugin, which this project doesn't have.
  */
 const DEPLOYED_API_BASE_URL = "https://bhvb87rakj.execute-api.us-east-1.amazonaws.com/prod";
-const API_BASE_URL = __DEV__ ? "http://localhost:3000" : DEPLOYED_API_BASE_URL;
+
+/** Extracted as a pure function so tests can exercise both branches directly, without re-requiring the whole App/React module graph (which duplicates React and breaks hooks). */
+export function resolveApiBaseUrl(config: { API_BASE_URL?: string } = Config): string {
+  return config.API_BASE_URL ?? DEPLOYED_API_BASE_URL;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 /** Production composition root: real Redux store, real HTTP client, real device keychain. */
 export default function App() {
