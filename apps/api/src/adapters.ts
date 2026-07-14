@@ -103,9 +103,18 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
     personalDataAuthToken: string;
     customerEmail: string;
   }): Promise<{ providerTransactionId: string }> {
-    const signature = createProviderSignature(request.reference, request.amountInCents, request.currency, this.required("PAYMENT_PROVIDER_INTEGRITY_SECRET"));
+    // The rest of this app's domain model (catalog prices, cart totals,
+    // mobile display in apps/mobile/src/format.ts) represents money as
+    // whole COP pesos, e.g. a $45,000 shirt is stored as amount: 45000.
+    // Wompi's wire format requires amount_in_cents as pesos * 100 (their
+    // docs: $95,000 COP -> 9500000), so this adapter - the one seam that
+    // talks to the real provider - is responsible for that conversion.
+    // Skipping it sends a value 100x too small, which the provider
+    // rejects once it falls under its real minimum transaction amount.
+    const providerAmountInCents = request.amountInCents * 100;
+    const signature = createProviderSignature(request.reference, providerAmountInCents, request.currency, this.required("PAYMENT_PROVIDER_INTEGRITY_SECRET"));
     const response = await this.post<{ data: { id: string } }>("/transactions", {
-      amount_in_cents: request.amountInCents,
+      amount_in_cents: providerAmountInCents,
       currency: request.currency,
       customer_email: request.customerEmail,
       reference: request.reference,
