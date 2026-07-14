@@ -3,6 +3,7 @@ node_modules
 **/dist
 **/coverage
 apps/mobile
+!apps/mobile/package.json
 .git
 .github
 openspec
