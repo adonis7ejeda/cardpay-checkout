@@ -1,0 +1,65 @@
+# Local Docker parity for the CardPay checkout API.
+#
+# Default usage (credential-free, in-memory + fake provider, matches local
+# runtime parity requirement):
+#   docker compose up --build
+#
+# Optional full persistence parity with DynamoDB Local (opt-in via profile):
+#   DYNAMODB_ENDPOINT=http://dynamodb-local:8000 docker compose --profile dynamodb up --build
+#
+# Compose profiles cannot express "api depends on dynamodb-local only when the
+# dynamodb profile is active" (a known compose-spec limitation), so there is
+# no startup-order guarantee between the two containers in that mode. The
+# DynamoDB client's default SDK retry behavior absorbs the brief window where
+# dynamodb-local is still starting; use `docker compose --profile dynamodb ps`
+# to confirm dynamodb-local is healthy if the first request after `up` fails.
+#
+# Real payment provider (opt-in, never hardcoded): export
+# PAYMENT_PROVIDER_PUBLIC_KEY / PAYMENT_PROVIDER_INTEGRITY_SECRET /
+# PAYMENT_PROVIDER_BASE_URL in your shell or an untracked .env file before
+# running compose. Leaving them unset keeps the deterministic fake provider.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # NODE_ENV overrides the "production" value baked into the Dockerfile's
+      # runtime image. This compose file is a local/self-hosted parity tool,
+      # not the real deployment target (that's the CDK-deployed Lambda, which
+      # correctly sets NODE_ENV=production itself). apps/api/src/adapters.ts's
+      # and persistence-config.ts's production guards require real payment
+      # provider/DynamoDB configuration whenever NODE_ENV=production, so
+      # inheriting that value here would break this file's own documented
+      # credential-free default instead of allowing the fake provider and
+      # in-memory storage.
+      NODE_ENV: development
+      PORT: 3000
+      AWS_REGION: us-east-1
+      DYNAMODB_ENDPOINT: ${DYNAMODB_ENDPOINT:-}
+      DYNAMODB_TRANSACTIONS_TABLE: cardpay-transactions
+      DYNAMODB_CATALOG_TABLE: cardpay-catalog-stock
+      PAYMENT_PROVIDER_PUBLIC_KEY: ${PAYMENT_PROVIDER_PUBLIC_KEY:-}
+      PAYMENT_PROVIDER_INTEGRITY_SECRET: ${PAYMENT_PROVIDER_INTEGRITY_SECRET:-}
+      PAYMENT_PROVIDER_BASE_URL: ${PAYMENT_PROVIDER_BASE_URL:-}
+
+  dynamodb-local:
+    image: amazon/dynamodb-local:2.5.2
+    profiles: ["dynamodb"]
+    ports:
+      - "8000:8000"
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    # Best-effort diagnostic healthcheck, not verified end-to-end (this
+    # sandbox has no running Docker daemon). amazon/dynamodb-local's minimal
+    # runtime image is not confirmed to ship curl -- if `docker compose
+    # --profile dynamodb ps` always reports dynamodb-local unhealthy despite
+    # the service working, replace this with `nc -z localhost 8000` or a
+    # tool actually present in the image.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s

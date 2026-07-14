@@ -50,12 +50,12 @@ Chain strategy: feature-branch-chain
 
 ## PR 3: Persistence / Deployment Adapters
 
-- [ ] 3.1 Add RED tests for in-memory default, `DYNAMODB_ENDPOINT`, DynamoDB transaction/stock/delivery, and fake startup without secrets.
-- [ ] 3.2 Implement DynamoDB repositories in `apps/api/src/**`; keep in-memory/fake default.
-- [ ] 3.3 Add `Dockerfile` and `docker-compose.yml` for API plus optional DynamoDB Local parity.
-- [ ] 3.4 Add `infra/**` CDK TypeScript stack in `us-east-1` for API Gateway, Lambda, DynamoDB, and env placeholders.
-- [ ] 3.5 Add Lambda handler using `@codegenie/serverless-express` without changing local Nest bootstrap.
-- [ ] 3.6 Run PR 3 hygiene scan and `cdk synth` to prove no hardcoded credentials.
+- [x] 3.1 Add RED tests for in-memory default, `DYNAMODB_ENDPOINT`, DynamoDB transaction/stock/delivery, and fake startup without secrets.
+- [x] 3.2 Implement DynamoDB repositories in `apps/api/src/**`; keep in-memory/fake default.
+- [x] 3.3 Add `Dockerfile` and `docker-compose.yml` for API plus optional DynamoDB Local parity.
+- [x] 3.4 Add `infra/**` CDK TypeScript stack in `us-east-1` for API Gateway, Lambda, DynamoDB, and env placeholders.
+- [x] 3.5 Add Lambda handler using `@codegenie/serverless-express` without changing local Nest bootstrap.
+- [x] 3.6 Run PR 3 hygiene scan and `cdk synth` to prove no hardcoded credentials.
 
 ## PR 4: Evidence / Hygiene / Readiness
 
