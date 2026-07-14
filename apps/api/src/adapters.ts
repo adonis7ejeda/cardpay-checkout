@@ -1,12 +1,10 @@
 import type { CatalogItemDto, CartItemDto, DeliveryAssignmentDto, LocalTransactionDto, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
 import { mapProviderStatus } from "@cardpay/core";
 import { createProviderSignature } from "@cardpay/core/server";
+import { CATALOG_SEED } from "./catalog-data";
 import type { CatalogPort, PaymentProviderPort, StockPort, TransactionRecord, TransactionRepositoryPort } from "./ports";
 
-const products: CatalogItemDto[] = [
-  { id: "basic-tee", name: "Basic Tee", description: "Everyday cotton tee", unitPrice: { amount: 45000, currency: "COP" }, stockAvailable: 4, purchasable: true },
-  { id: "canvas-tote", name: "Canvas Tote", description: "Reusable checkout tote", unitPrice: { amount: 32000, currency: "COP" }, stockAvailable: 2, purchasable: true },
-];
+const products: CatalogItemDto[] = CATALOG_SEED;
 
 export class InMemoryCatalogAdapter implements CatalogPort, StockPort {
   private readonly stock = new Map(products.map((item) => [item.id, item.stockAvailable]));
@@ -45,8 +43,8 @@ export class DeterministicFakePaymentAdapter implements PaymentProviderPort {
     return { cardToken: "fake_card_token" };
   }
 
-  async fetchAcceptanceToken(): Promise<{ acceptanceToken: string }> {
-    return { acceptanceToken: "fake_acceptance_token" };
+  async fetchAcceptanceToken(): Promise<{ acceptanceToken: string; personalDataAuthToken: string }> {
+    return { acceptanceToken: "fake_acceptance_token", personalDataAuthToken: "fake_personal_data_auth_token" };
   }
 
   async createTransaction(request: { reference: string }): Promise<{ providerTransactionId: string }> {
@@ -85,19 +83,43 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
     return { cardToken: response.data.id };
   }
 
-  async fetchAcceptanceToken(): Promise<{ acceptanceToken: string }> {
-    const response = await this.get<{ data: { presigned_acceptance: { acceptance_token: string } } }>(`/merchants/${this.required("PAYMENT_PROVIDER_PUBLIC_KEY")}`);
-    return { acceptanceToken: response.data.presigned_acceptance.acceptance_token };
+  async fetchAcceptanceToken(): Promise<{ acceptanceToken: string; personalDataAuthToken: string }> {
+    const response = await this.get<{
+      data: { presigned_acceptance: { acceptance_token: string }; presigned_personal_data_auth: { acceptance_token: string } };
+    }>(`/merchants/${this.required("PAYMENT_PROVIDER_PUBLIC_KEY")}`);
+    return {
+      acceptanceToken: response.data.presigned_acceptance.acceptance_token,
+      personalDataAuthToken: response.data.presigned_personal_data_auth.acceptance_token
+    };
   }
 
-  async createTransaction(request: { reference: string; amountInCents: number; currency: "COP"; installments: number; cardToken: string; acceptanceToken: string; customerEmail: string }): Promise<{ providerTransactionId: string }> {
-    const signature = createProviderSignature(request.reference, request.amountInCents, request.currency, this.required("PAYMENT_PROVIDER_INTEGRITY_SECRET"));
+  async createTransaction(request: {
+    reference: string;
+    amountInCents: number;
+    currency: "COP";
+    installments: number;
+    cardToken: string;
+    acceptanceToken: string;
+    personalDataAuthToken: string;
+    customerEmail: string;
+  }): Promise<{ providerTransactionId: string }> {
+    // The rest of this app's domain model (catalog prices, cart totals,
+    // mobile display in apps/mobile/src/format.ts) represents money as
+    // whole COP pesos, e.g. a $45,000 shirt is stored as amount: 45000.
+    // PROVIDER's wire format requires amount_in_cents as pesos * 100 (their
+    // docs: $95,000 COP -> 9500000), so this adapter - the one seam that
+    // talks to the real provider - is responsible for that conversion.
+    // Skipping it sends a value 100x too small, which the provider
+    // rejects once it falls under its real minimum transaction amount.
+    const providerAmountInCents = request.amountInCents * 100;
+    const signature = createProviderSignature(request.reference, providerAmountInCents, request.currency, this.required("PAYMENT_PROVIDER_INTEGRITY_SECRET"));
     const response = await this.post<{ data: { id: string } }>("/transactions", {
-      amount_in_cents: request.amountInCents,
+      amount_in_cents: providerAmountInCents,
       currency: request.currency,
       customer_email: request.customerEmail,
       reference: request.reference,
       acceptance_token: request.acceptanceToken,
+      accept_personal_auth: request.personalDataAuthToken,
       signature,
       payment_method: { type: "CARD", token: request.cardToken, installments: request.installments }
     });
@@ -112,8 +134,8 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
   async authorize(attempt: PaymentAttemptDto): Promise<TransactionResultDto> {
     const reference = `REF-${Date.now()}`;
     const { cardToken } = await this.tokenizeCard(attempt.card);
-    const { acceptanceToken } = await this.fetchAcceptanceToken();
-    const { providerTransactionId } = await this.createTransaction({ reference, amountInCents: attempt.totals.total.amount, currency: "COP", installments: attempt.installments, cardToken, acceptanceToken, customerEmail: attempt.identity.email });
+    const { acceptanceToken, personalDataAuthToken } = await this.fetchAcceptanceToken();
+    const { providerTransactionId } = await this.createTransaction({ reference, amountInCents: attempt.totals.total.amount, currency: "COP", installments: attempt.installments, cardToken, acceptanceToken, personalDataAuthToken, customerEmail: attempt.identity.email });
     const providerResult = await this.pollTransaction(providerTransactionId);
     const status = providerResult.status === "PENDING" ? "RETRYABLE" : mapProviderStatus(providerResult.status);
     const transaction = localTransaction(providerTransactionId, attempt, status);
@@ -130,9 +152,40 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
   }
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
-    const response = await fetch(`${this.required("PAYMENT_PROVIDER_BASE_URL")}${path}`, init);
-    if (!response.ok) throw new Error("Provider request failed");
+    const response = await fetch(`${this.required("PAYMENT_PROVIDER_BASE_URL")}${path}`, {
+      ...init,
+      headers: { ...init.headers, Authorization: `Bearer ${this.required("PAYMENT_PROVIDER_PUBLIC_KEY")}` }
+    });
+    if (!response.ok) {
+      const detail = await this.safeValidationDetail(response);
+      throw new Error(`Provider request failed (${response.status} ${init.method ?? "GET"} ${path})${detail ? `: ${detail}` : ""}`);
+    }
     return (await response.json()) as T;
+  }
+
+  /**
+   * Extracts only the provider's own field-validation error type/field names
+   * (e.g. "acceptance_token: is required") for diagnostics. These are
+   * fixed, provider-authored strings describing which of OUR request
+   * fields failed validation and why - never an echo of submitted card,
+   * email, or personal data - so this is safe to log server-side even
+   * though the full response body is not (see the payment-provider fix
+   * history: an earlier attempt to log the raw body was rejected by
+   * review because it could have echoed unredacted PII/CVC).
+   */
+  private async safeValidationDetail(response: Response): Promise<string | undefined> {
+    try {
+      const body = (await response.json()) as { error?: { type?: string; messages?: Record<string, string[]> } };
+      if (!body.error) return undefined;
+      const fieldSummary = body.error.messages
+        ? Object.entries(body.error.messages)
+            .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
+            .join("; ")
+        : undefined;
+      return [body.error.type, fieldSummary].filter(Boolean).join(" - ");
+    } catch {
+      return undefined;
+    }
   }
 
   private required(name: "PAYMENT_PROVIDER_PUBLIC_KEY" | "PAYMENT_PROVIDER_INTEGRITY_SECRET" | "PAYMENT_PROVIDER_BASE_URL"): string {

@@ -11,7 +11,7 @@ export interface StockPort {
 
 export interface PaymentProviderPort {
   tokenizeCard(card: PaymentAttemptDto["card"]): Promise<{ cardToken: string }>;
-  fetchAcceptanceToken(): Promise<{ acceptanceToken: string }>;
+  fetchAcceptanceToken(): Promise<{ acceptanceToken: string; personalDataAuthToken: string }>;
   createTransaction(request: {
     reference: string;
     amountInCents: number;
@@ -19,6 +19,7 @@ export interface PaymentProviderPort {
     installments: number;
     cardToken: string;
     acceptanceToken: string;
+    personalDataAuthToken: string;
     customerEmail: string;
   }): Promise<{ providerTransactionId: string }>;
   pollTransaction(providerTransactionId: string): Promise<ProviderTransactionResultDto>;

@@ -1,0 +1,21 @@
+{
+  "name": "infra",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "cdk": "cdk",
+    "build": "tsc -p tsconfig.json",
+    "build:lambda": "pnpm --filter @cardpay/contracts build && pnpm --filter @cardpay/core build && pnpm --filter @cardpay/api build",
+    "presynth": "pnpm run build:lambda",
+    "synth": "cdk synth"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "aws-cdk": "^2.115.0",
+    "aws-cdk-lib": "^2.115.0",
+    "constructs": "^10.3.0",
+    "esbuild": "^0.24.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}
