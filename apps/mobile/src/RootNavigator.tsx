@@ -29,6 +29,10 @@ export interface RootNavigatorProps {
   today?: Date;
 }
 
+/** Reconciliation polling for a transaction that came back PENDING after bounded server-side polling. */
+const PENDING_POLL_INTERVAL_MS = 4000;
+const PENDING_POLL_MAX_ATTEMPTS = 15;
+
 /**
  * Wires the redux checkout state to the presentational screens and drives
  * the 8-screen OpenPencil flow (Splash -> Home -> Select Product -> Checkout
@@ -59,6 +63,48 @@ export function RootNavigator({ api, storage, today }: RootNavigatorProps) {
     // Runs once: the initial hydration attempt only happens on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reconciliation polling: a transaction that came back PENDING from the
+  // backend's own bounded provider polling (see apps/api's
+  // MAX_PROVIDER_POLLS) is not resolved yet -- poll the reconciliation
+  // endpoint at a fixed interval, bounded to a maximum number of attempts,
+  // until it resolves to a terminal status or the attempt budget runs out.
+  // Never offers a resubmit action while this is in flight (see
+  // TransactionStatusScreen's `result.status === "failed"` gating), which
+  // avoids a duplicate charge.
+  useEffect(() => {
+    const isOnStatusScreen = screen === "TransactionSuccess" || screen === "TransactionFailure";
+    const pendingTransactionId = state.lastResult?.status === "PENDING" ? state.lastResult.transaction?.transactionId : undefined;
+    if (!isOnStatusScreen || !pendingTransactionId) return;
+
+    let attempts = 0;
+    let cancelled = false;
+    const interval = setInterval(() => {
+      attempts += 1;
+      api
+        .getTransactionStatus(pendingTransactionId)
+        .then((updated) => {
+          if (cancelled) return;
+          if (updated.status === "PENDING") {
+            if (attempts >= PENDING_POLL_MAX_ATTEMPTS) clearInterval(interval);
+            return;
+          }
+          clearInterval(interval);
+          dispatch(checkoutActions.paymentFinished(updated));
+          setScreen(updated.status === "succeeded" ? "TransactionSuccess" : "TransactionFailure");
+        })
+        .catch(() => {
+          // Transient network/backend error while polling: keep retrying
+          // up to the attempt budget rather than failing the screen outright.
+          if (attempts >= PENDING_POLL_MAX_ATTEMPTS) clearInterval(interval);
+        });
+    }, PENDING_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [screen, state.lastResult, api, dispatch]);
 
   const items = cartItemsFromState(state);
   const productNames = Object.fromEntries(state.catalog.map((product) => [product.id, product.name]));

@@ -19,4 +19,10 @@ export class HttpApiClient implements ApiClient {
     if (!response.ok) throw new Error("Payment submission is unavailable");
     return (await response.json()) as TransactionResultDto;
   }
+
+  async getTransactionStatus(transactionId: string): Promise<TransactionResultDto> {
+    const response = await this.fetcher(`${this.baseUrl}/transactions/${transactionId}`);
+    if (!response.ok) throw new Error("Transaction status is unavailable");
+    return (await response.json()) as TransactionResultDto;
+  }
 }

@@ -1,4 +1,4 @@
-import type { CatalogItemDto, CartItemDto, DeliveryAssignmentDto, LocalTransactionDto, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
+import type { CatalogItemDto, CartItemDto, DeliveryAssignmentDto, LocalTransactionDto, LocalTransactionStatus, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
 import { mapProviderStatus } from "@cardpay/core";
 import { createProviderSignature } from "@cardpay/core/server";
 import { CATALOG_SEED } from "./catalog-data";
@@ -76,8 +76,14 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
     const response = await this.post<{ data: { id: string } }>("/tokens/cards", {
       number: card.number,
       cvc: card.cvc,
-      exp_month: card.expirationMonth,
-      exp_year: card.expirationYear,
+      // The payment provider requires exp_month and exp_year as exactly
+      // two-digit strings ("06", "29"), matching /^\d{2}$/ - but the domain model/mobile input
+      // don't enforce that shape (a single-digit month like "1", or a
+      // four-digit year like "2030", both pass this app's own validation).
+      // Normalize only here, at the seam that talks to the real provider,
+      // rather than constraining the internal representation everywhere.
+      exp_month: twoDigitMonth(card.expirationMonth),
+      exp_year: twoDigitYear(card.expirationYear),
       card_holder: card.cardholderName
     });
     return { cardToken: response.data.id };
@@ -106,8 +112,8 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
     // The rest of this app's domain model (catalog prices, cart totals,
     // mobile display in apps/mobile/src/format.ts) represents money as
     // whole COP pesos, e.g. a $45,000 shirt is stored as amount: 45000.
-    // PROVIDER's wire format requires amount_in_cents as pesos * 100 (their
-    // docs: $95,000 COP -> 9500000), so this adapter - the one seam that
+    // The payment provider's wire format requires amount_in_cents as pesos *
+    // 100 (their docs: $95,000 COP -> 9500000), so this adapter - the one seam that
     // talks to the real provider - is responsible for that conversion.
     // Skipping it sends a value 100x too small, which the provider
     // rejects once it falls under its real minimum transaction amount.
@@ -210,17 +216,53 @@ export class InMemoryTransactionRepository implements TransactionRepositoryPort 
   private readonly records: TransactionRecord[] = [];
 
   async save(record: TransactionRecord): Promise<TransactionRecord> {
-    this.records.push(record);
+    const index = this.records.findIndex((existing) => existing.result.transactionId === record.result.transactionId);
+    if (index === -1) this.records.push(record);
+    else this.records[index] = record;
     return record;
   }
 
   async all(): Promise<TransactionRecord[]> {
     return [...this.records];
   }
+
+  async findById(transactionId: string): Promise<TransactionRecord | undefined> {
+    return this.records.find((record) => record.result.transactionId === transactionId);
+  }
+
+  async saveIfStatus(record: TransactionRecord, expectedCurrentStatus: LocalTransactionStatus): Promise<boolean> {
+    // Check-then-write with no `await` between them: an async function body
+    // runs synchronously up to its first `await`, so keeping both the read
+    // and the write in that same synchronous span (rather than two separate
+    // awaited calls) prevents another concurrent saveIfStatus call from
+    // interleaving between the check and the write - the same atomicity
+    // DynamoDbTransactionRepository gets from a ConditionExpression, without
+    // a real database underneath.
+    const index = this.records.findIndex((existing) => existing.result.transactionId === record.result.transactionId);
+    if (index === -1 || this.records[index]!.result.transaction?.status !== expectedCurrentStatus) return false;
+    this.records[index] = record;
+    return true;
+  }
 }
 
 function last4(value: string): string {
   return value.replace(/\D/g, "").slice(-4);
+}
+
+function twoDigitMonth(month: string): string {
+  const padded = month.padStart(2, "0");
+  if (!/^(0[1-9]|1[0-2])$/.test(padded)) throw new Error("Card expiration month must be between 01 and 12.");
+  return padded;
+}
+
+function twoDigitYear(year: string): string {
+  // Only accept exactly 2 or exactly 4 digits: anything else (e.g. a
+  // malformed "10000") must be rejected outright rather than silently
+  // sliced into a plausible-looking but semantically wrong 2-digit value
+  // sent to the real provider as if it were the customer's actual year.
+  if (/^\d{2}$/.test(year)) return year;
+  if (/^\d{4}$/.test(year)) return year.slice(-2);
+  throw new Error("Card expiration year must be 2 or 4 digits.");
 }
 
 function hash(value: string): string {

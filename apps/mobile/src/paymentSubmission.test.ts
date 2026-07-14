@@ -13,7 +13,7 @@ function readyStore() {
 }
 
 function api(result: TransactionResultDto): ApiClient {
-  return { fetchCatalog: jest.fn(async () => catalog), submitPayment: jest.fn(async () => result) };
+  return { fetchCatalog: jest.fn(async () => catalog), submitPayment: jest.fn(async () => result), getTransactionStatus: jest.fn(async () => result) };
 }
 
 describe("installments selection is included in the payment attempt DTO", () => {
@@ -58,7 +58,7 @@ describe("transient PAN/CVC clearing after a backend response", () => {
 describe("network/backend transport failure during submission", () => {
   it("surfaces a retry-safe error and does not throw when the backend is unreachable", async () => {
     const store = readyStore();
-    const client: ApiClient = { fetchCatalog: jest.fn(async () => catalog), submitPayment: jest.fn(async () => { throw new Error("network down"); }) };
+    const client: ApiClient = { fetchCatalog: jest.fn(async () => catalog), submitPayment: jest.fn(async () => { throw new Error("network down"); }), getTransactionStatus: jest.fn() };
 
     const result = await submitPayment(store, client, new Date("2026-01-01"));
 
@@ -70,7 +70,7 @@ describe("network/backend transport failure during submission", () => {
 
   it("keeps the entered card data intact after a transport failure so the user does not retype it", async () => {
     const store = readyStore();
-    const client: ApiClient = { fetchCatalog: jest.fn(async () => catalog), submitPayment: jest.fn(async () => { throw new Error("timeout"); }) };
+    const client: ApiClient = { fetchCatalog: jest.fn(async () => catalog), submitPayment: jest.fn(async () => { throw new Error("timeout"); }), getTransactionStatus: jest.fn() };
 
     await submitPayment(store, client, new Date("2026-01-01"));
 

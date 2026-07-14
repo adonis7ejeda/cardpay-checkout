@@ -1,7 +1,7 @@
 import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import { GetCommand, PutCommand, ScanCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
-import type { CartItemDto, CatalogItemDto } from "@cardpay/contracts";
+import type { CartItemDto, CatalogItemDto, LocalTransactionStatus } from "@cardpay/contracts";
 import { CATALOG_SEED } from "./catalog-data";
 import type { CatalogPort, StockPort, TransactionRecord, TransactionRepositoryPort } from "./ports";
 
@@ -15,7 +15,7 @@ export class DynamoDbTransactionRepository implements TransactionRepositoryPort 
     await this.client.send(
       new PutCommand({
         TableName: this.tableName,
-        Item: { transactionId: record.result.transactionId, createdAt: record.createdAt, payload: JSON.stringify(record) }
+        Item: { transactionId: record.result.transactionId, createdAt: record.createdAt, payload: JSON.stringify(record), status: this.statusOf(record) }
       })
     );
     return record;
@@ -24,6 +24,34 @@ export class DynamoDbTransactionRepository implements TransactionRepositoryPort 
   async all(): Promise<TransactionRecord[]> {
     const response = await this.client.send(new ScanCommand({ TableName: this.tableName }));
     return (response.Items ?? []).map((item) => JSON.parse(item.payload as string) as TransactionRecord);
+  }
+
+  async findById(transactionId: string): Promise<TransactionRecord | undefined> {
+    const response = await this.client.send(new GetCommand({ TableName: this.tableName, Key: { transactionId } }));
+    if (!response.Item) return undefined;
+    return JSON.parse(response.Item.payload as string) as TransactionRecord;
+  }
+
+  async saveIfStatus(record: TransactionRecord, expectedCurrentStatus: LocalTransactionStatus): Promise<boolean> {
+    try {
+      await this.client.send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: { transactionId: record.result.transactionId, createdAt: record.createdAt, payload: JSON.stringify(record), status: this.statusOf(record) },
+          ConditionExpression: "#status = :expected",
+          ExpressionAttributeNames: { "#status": "status" },
+          ExpressionAttributeValues: { ":expected": expectedCurrentStatus }
+        })
+      );
+      return true;
+    } catch (error) {
+      if (error instanceof ConditionalCheckFailedException) return false;
+      throw error;
+    }
+  }
+
+  private statusOf(record: TransactionRecord): LocalTransactionStatus | undefined {
+    return record.result.transaction?.status;
   }
 }
 
