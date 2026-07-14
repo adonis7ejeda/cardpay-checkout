@@ -40,7 +40,7 @@ export class CreateTransactionUseCase {
     if (!(await this.stock.reserveStock(attempt.cartItems))) return this.stockRejectedResult(attempt.identity.email, transaction);
     try {
       const { cardToken } = await this.paymentProvider.tokenizeCard(attempt.card);
-      const { acceptanceToken } = await this.paymentProvider.fetchAcceptanceToken();
+      const { acceptanceToken, personalDataAuthToken } = await this.paymentProvider.fetchAcceptanceToken();
       const { providerTransactionId } = await this.paymentProvider.createTransaction({
         reference: transaction.reference,
         amountInCents: transaction.amountInCents,
@@ -48,6 +48,7 @@ export class CreateTransactionUseCase {
         installments: attempt.installments,
         cardToken,
         acceptanceToken,
+        personalDataAuthToken,
         customerEmail: attempt.identity.email
       });
       const providerResult = await this.pollUntilResolved(providerTransactionId);

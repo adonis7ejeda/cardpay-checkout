@@ -30,12 +30,46 @@ describe("EnvPaymentProviderAdapter", () => {
   });
 
   it("does not let per-call headers override the Authorization bearer token", async () => {
-    fetchSpy.mockResolvedValue(jsonResponse({ data: { presigned_acceptance: { acceptance_token: "accept_tok_1" } } }));
+    fetchSpy.mockResolvedValue(
+      jsonResponse({ data: { presigned_acceptance: { acceptance_token: "accept_tok_1" }, presigned_personal_data_auth: { acceptance_token: "personal_auth_tok_1" } } })
+    );
     const adapter = new EnvPaymentProviderAdapter(env);
 
     await adapter.fetchAcceptanceToken();
 
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect((init.headers as Record<string, string>).Authorization).toBe(`Bearer ${env.PAYMENT_PROVIDER_PUBLIC_KEY}`);
+  });
+
+  it("fetches both the acceptance token and the personal data auth token", async () => {
+    fetchSpy.mockResolvedValue(
+      jsonResponse({ data: { presigned_acceptance: { acceptance_token: "accept_tok_1" }, presigned_personal_data_auth: { acceptance_token: "personal_auth_tok_1" } } })
+    );
+    const adapter = new EnvPaymentProviderAdapter(env);
+
+    const result = await adapter.fetchAcceptanceToken();
+
+    expect(result).toEqual({ acceptanceToken: "accept_tok_1", personalDataAuthToken: "personal_auth_tok_1" });
+  });
+
+  it("sends both acceptance tokens when creating a transaction", async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ data: { id: "provider_txn_1" } }));
+    const adapter = new EnvPaymentProviderAdapter(env);
+
+    await adapter.createTransaction({
+      reference: "REF-1",
+      amountInCents: 45000,
+      currency: "COP",
+      installments: 1,
+      cardToken: "card_tok_1",
+      acceptanceToken: "accept_tok_1",
+      personalDataAuthToken: "personal_auth_tok_1",
+      customerEmail: "ada@example.com"
+    });
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.acceptance_token).toBe("accept_tok_1");
+    expect(body.accept_personal_auth).toBe("personal_auth_tok_1");
   });
 });

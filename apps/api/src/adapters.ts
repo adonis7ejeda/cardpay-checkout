@@ -43,8 +43,8 @@ export class DeterministicFakePaymentAdapter implements PaymentProviderPort {
     return { cardToken: "fake_card_token" };
   }
 
-  async fetchAcceptanceToken(): Promise<{ acceptanceToken: string }> {
-    return { acceptanceToken: "fake_acceptance_token" };
+  async fetchAcceptanceToken(): Promise<{ acceptanceToken: string; personalDataAuthToken: string }> {
+    return { acceptanceToken: "fake_acceptance_token", personalDataAuthToken: "fake_personal_data_auth_token" };
   }
 
   async createTransaction(request: { reference: string }): Promise<{ providerTransactionId: string }> {
@@ -83,12 +83,26 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
     return { cardToken: response.data.id };
   }
 
-  async fetchAcceptanceToken(): Promise<{ acceptanceToken: string }> {
-    const response = await this.get<{ data: { presigned_acceptance: { acceptance_token: string } } }>(`/merchants/${this.required("PAYMENT_PROVIDER_PUBLIC_KEY")}`);
-    return { acceptanceToken: response.data.presigned_acceptance.acceptance_token };
+  async fetchAcceptanceToken(): Promise<{ acceptanceToken: string; personalDataAuthToken: string }> {
+    const response = await this.get<{
+      data: { presigned_acceptance: { acceptance_token: string }; presigned_personal_data_auth: { acceptance_token: string } };
+    }>(`/merchants/${this.required("PAYMENT_PROVIDER_PUBLIC_KEY")}`);
+    return {
+      acceptanceToken: response.data.presigned_acceptance.acceptance_token,
+      personalDataAuthToken: response.data.presigned_personal_data_auth.acceptance_token
+    };
   }
 
-  async createTransaction(request: { reference: string; amountInCents: number; currency: "COP"; installments: number; cardToken: string; acceptanceToken: string; customerEmail: string }): Promise<{ providerTransactionId: string }> {
+  async createTransaction(request: {
+    reference: string;
+    amountInCents: number;
+    currency: "COP";
+    installments: number;
+    cardToken: string;
+    acceptanceToken: string;
+    personalDataAuthToken: string;
+    customerEmail: string;
+  }): Promise<{ providerTransactionId: string }> {
     const signature = createProviderSignature(request.reference, request.amountInCents, request.currency, this.required("PAYMENT_PROVIDER_INTEGRITY_SECRET"));
     const response = await this.post<{ data: { id: string } }>("/transactions", {
       amount_in_cents: request.amountInCents,
@@ -96,6 +110,7 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
       customer_email: request.customerEmail,
       reference: request.reference,
       acceptance_token: request.acceptanceToken,
+      accept_personal_auth: request.personalDataAuthToken,
       signature,
       payment_method: { type: "CARD", token: request.cardToken, installments: request.installments }
     });
@@ -110,8 +125,8 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
   async authorize(attempt: PaymentAttemptDto): Promise<TransactionResultDto> {
     const reference = `REF-${Date.now()}`;
     const { cardToken } = await this.tokenizeCard(attempt.card);
-    const { acceptanceToken } = await this.fetchAcceptanceToken();
-    const { providerTransactionId } = await this.createTransaction({ reference, amountInCents: attempt.totals.total.amount, currency: "COP", installments: attempt.installments, cardToken, acceptanceToken, customerEmail: attempt.identity.email });
+    const { acceptanceToken, personalDataAuthToken } = await this.fetchAcceptanceToken();
+    const { providerTransactionId } = await this.createTransaction({ reference, amountInCents: attempt.totals.total.amount, currency: "COP", installments: attempt.installments, cardToken, acceptanceToken, personalDataAuthToken, customerEmail: attempt.identity.email });
     const providerResult = await this.pollTransaction(providerTransactionId);
     const status = providerResult.status === "PENDING" ? "RETRYABLE" : mapProviderStatus(providerResult.status);
     const transaction = localTransaction(providerTransactionId, attempt, status);
