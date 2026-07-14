@@ -51,14 +51,14 @@ services:
     ports:
       - "8000:8000"
     command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
-    # Best-effort diagnostic healthcheck, not verified end-to-end (this
-    # sandbox has no running Docker daemon). amazon/dynamodb-local's minimal
-    # runtime image is not confirmed to ship curl -- if `docker compose
-    # --profile dynamodb ps` always reports dynamodb-local unhealthy despite
-    # the service working, replace this with `nc -z localhost 8000` or a
-    # tool actually present in the image.
+    # DynamoDB Local's bare root endpoint always returns HTTP 400
+    # (MissingAuthenticationToken) for an unauthenticated request -- that is
+    # its normal, healthy response, not a failure. `curl -f` treats any 4xx
+    # as an error, so it must be omitted here: we only care that Jetty is
+    # listening and responds with *some* HTTP response, not that it returns
+    # 2xx. Verified directly against a running container.
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://localhost:8000/ || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
