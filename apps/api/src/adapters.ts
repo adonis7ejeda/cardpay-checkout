@@ -132,7 +132,9 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
       ...init,
       headers: { ...init.headers, Authorization: `Bearer ${this.required("PAYMENT_PROVIDER_PUBLIC_KEY")}` }
     });
-    if (!response.ok) throw new Error("Provider request failed");
+    if (!response.ok) {
+      throw new Error(`Provider request failed (${response.status} ${init.method ?? "GET"} ${path})`);
+    }
     return (await response.json()) as T;
   }
 
