@@ -4,3 +4,4 @@ export * from "./identity";
 export * from "./card";
 export * from "./masking";
 export * from "./outcome";
+export * from "./provider-lifecycle";

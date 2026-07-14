@@ -13,7 +13,8 @@ const validPaymentAttempt: PaymentAttemptDto = {
   identity: { fullName: "Ada Lovelace", email: "ada@example.com" },
   cartItems: [{ productId: "sku-1", quantity: 2, unitPrice: catalog[0].unitPrice }],
   totals: { subtotal: { amount: 240000, currency: "COP" }, total: { amount: 240000, currency: "COP" }, itemCount: 2 },
-  fakeCard: validCard
+  card: validCard,
+  installments: 1
 };
 
 function api(result: TransactionResultDto = succeeded("txn-1"), items = catalog): ApiClient {

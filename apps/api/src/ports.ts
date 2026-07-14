@@ -1,14 +1,27 @@
-import type { CatalogItemDto, CartItemDto, PaymentAttemptDto, TransactionResultDto } from "@cardpay/contracts";
+import type { CatalogItemDto, CartItemDto, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
 
 export interface CatalogPort {
   list(): Promise<CatalogItemDto[]>;
 }
 
 export interface StockPort {
-  hasStock(items: CartItemDto[]): Promise<boolean>;
+  reserveStock(items: CartItemDto[]): Promise<boolean>;
+  releaseStock(items: CartItemDto[]): Promise<void>;
 }
 
 export interface PaymentProviderPort {
+  tokenizeCard(card: PaymentAttemptDto["card"]): Promise<{ cardToken: string }>;
+  fetchAcceptanceToken(): Promise<{ acceptanceToken: string }>;
+  createTransaction(request: {
+    reference: string;
+    amountInCents: number;
+    currency: "COP";
+    installments: number;
+    cardToken: string;
+    acceptanceToken: string;
+    customerEmail: string;
+  }): Promise<{ providerTransactionId: string }>;
+  pollTransaction(providerTransactionId: string): Promise<ProviderTransactionResultDto>;
   authorize(attempt: PaymentAttemptDto): Promise<TransactionResultDto>;
 }
 
