@@ -8,7 +8,8 @@
     "types": ["node"],
     "paths": {
       "@cardpay/contracts": ["../../packages/contracts/src"],
-      "@cardpay/core": ["../../packages/core/src"]
+      "@cardpay/core": ["../../packages/core/src"],
+      "@cardpay/core/server": ["../../packages/core/src/provider-signature"]
     }
   },
   "include": ["src/**/*.ts"],

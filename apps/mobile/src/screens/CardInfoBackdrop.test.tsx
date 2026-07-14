@@ -41,4 +41,29 @@ describe("CardInfoBackdrop", () => {
     fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it("strips digits out of the cardholder name as the shopper types", () => {
+    const onChangeField = jest.fn();
+    render(<CardInfoBackdrop open value={emptyCard} installments={1} onChangeField={onChangeField} onChangeInstallments={jest.fn()} onCancel={jest.fn()} onSubmit={jest.fn()} today={today} />);
+    fireEvent.changeText(screen.getByLabelText("Cardholder name"), "Ada4 Lovelace2");
+    expect(onChangeField).toHaveBeenCalledWith("cardholderName", "Ada Lovelace");
+  });
+
+  it("strips letters out of the card number as the shopper types", () => {
+    const onChangeField = jest.fn();
+    render(<CardInfoBackdrop open value={emptyCard} installments={1} onChangeField={onChangeField} onChangeInstallments={jest.fn()} onCancel={jest.fn()} onSubmit={jest.fn()} today={today} />);
+    fireEvent.changeText(screen.getByLabelText("Card number"), "4a111111111111111b");
+    expect(onChangeField).toHaveBeenCalledWith("number", "4111111111111111");
+  });
+
+  it("strips letters out of the expiration month, expiration year, and CVC fields", () => {
+    const onChangeField = jest.fn();
+    render(<CardInfoBackdrop open value={emptyCard} installments={1} onChangeField={onChangeField} onChangeInstallments={jest.fn()} onCancel={jest.fn()} onSubmit={jest.fn()} today={today} />);
+    fireEvent.changeText(screen.getByLabelText("Expiration month"), "1a2");
+    expect(onChangeField).toHaveBeenCalledWith("expirationMonth", "12");
+    fireEvent.changeText(screen.getByLabelText("Expiration year"), "2b9");
+    expect(onChangeField).toHaveBeenCalledWith("expirationYear", "29");
+    fireEvent.changeText(screen.getByLabelText("CVC"), "1x2y3");
+    expect(onChangeField).toHaveBeenCalledWith("cvc", "123");
+  });
 });

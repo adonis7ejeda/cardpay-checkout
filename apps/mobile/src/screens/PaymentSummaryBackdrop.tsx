@@ -11,6 +11,7 @@ export interface PaymentSummaryBackdropProps {
   open: boolean;
   card: FakeCardInputDto;
   items: CartItemDto[];
+  productNames: Record<string, string>;
   isSubmitting: boolean;
   errorMessage?: string;
   onCancel: () => void;
@@ -18,7 +19,7 @@ export interface PaymentSummaryBackdropProps {
 }
 
 /** Screen 6 — Payment Summary backdrop: masked card + itemized total + Pay action. */
-export function PaymentSummaryBackdrop({ open, card, items, isSubmitting, errorMessage, onCancel, onPay }: PaymentSummaryBackdropProps) {
+export function PaymentSummaryBackdrop({ open, card, items, productNames, isSubmitting, errorMessage, onCancel, onPay }: PaymentSummaryBackdropProps) {
   const totals = calculateCartTotals(items);
   const brand = detectCardBrand(card.number);
 
@@ -36,7 +37,7 @@ export function PaymentSummaryBackdrop({ open, card, items, isSubmitting, errorM
 
         {items.map((item) => (
           <View key={item.productId} style={styles.itemRow}>
-            <Text>{item.productId}</Text>
+            <Text>{productNames[item.productId] ?? item.productId}</Text>
             <Text>x{item.quantity}</Text>
           </View>
         ))}

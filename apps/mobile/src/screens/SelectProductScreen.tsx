@@ -12,14 +12,18 @@ export interface SelectProductScreenProps {
   onChangeQuantity: (productId: string, quantity: number) => void;
   onRemove: (productId: string) => void;
   onContinue: () => void;
+  onBack: () => void;
 }
 
 /** Screen 3 — Select Product: confirm/adjust quantities before checkout. */
-export function SelectProductScreen({ items, productNames, stockByProduct, onChangeQuantity, onRemove, onContinue }: SelectProductScreenProps) {
+export function SelectProductScreen({ items, productNames, stockByProduct, onChangeQuantity, onRemove, onContinue, onBack }: SelectProductScreenProps) {
   const totals = calculateCartTotals(items);
 
   return (
     <View style={styles.screen}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back to Home" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backLabel}>{"< Back to Home"}</Text>
+      </Pressable>
       <ScrollView contentContainerStyle={styles.list}>
         {items.map((item) => {
           const stock = stockByProduct[item.productId] ?? item.quantity;
@@ -60,7 +64,11 @@ export function SelectProductScreen({ items, productNames, stockByProduct, onCha
             </View>
           );
         })}
-        {items.length === 0 && <Text style={styles.empty}>Your cart is empty. Go back to Home to add products.</Text>}
+        {items.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.empty}>Your cart is empty. Go back to Home to add products.</Text>
+          </View>
+        )}
       </ScrollView>
       <View style={styles.footer}>
         <Text style={styles.total}>Total: {formatMoney(totals.total)}</Text>
@@ -72,7 +80,10 @@ export function SelectProductScreen({ items, productNames, stockByProduct, onCha
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f3f4f6" },
+  backButton: { paddingHorizontal: 16, paddingTop: 16 },
+  backLabel: { color: "#1a56db", fontWeight: "600" },
   list: { padding: 16, gap: 12 },
+  emptyState: { alignItems: "center", gap: 16, marginTop: 32 },
   row: { backgroundColor: "#ffffff", borderRadius: 12, padding: 12, gap: 8 },
   name: { fontSize: 15, fontWeight: "600" },
   stepperRow: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -81,7 +92,7 @@ const styles = StyleSheet.create({
   quantity: { minWidth: 20, textAlign: "center", fontWeight: "600" },
   lineTotal: { fontWeight: "600" },
   remove: { color: "#b91c1c", fontWeight: "600" },
-  empty: { textAlign: "center", color: "#4b5563", marginTop: 32 },
+  empty: { textAlign: "center", color: "#4b5563" },
   footer: { padding: 16, gap: 8, backgroundColor: "#ffffff" },
   total: { fontSize: 16, fontWeight: "700" }
 });

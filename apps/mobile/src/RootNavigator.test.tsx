@@ -54,6 +54,12 @@ describe("RootNavigator end-to-end checkout flow", () => {
     expect(api.submitPayment).toHaveBeenCalledWith(expect.objectContaining({ installments: 6 }));
     expect(store.getState().checkout.fakeCard.number).toBe("");
 
+    // The success screen must still show what was actually charged/purchased
+    // even though the cart is cleared as soon as the payment is approved.
+    expect(screen.getByText("Wireless Headphones x1")).toBeTruthy();
+    expect(screen.getByText("$120,000")).toBeTruthy();
+    expect(store.getState().checkout.cart).toEqual({});
+
     fireEvent.press(screen.getByRole("button", { name: "Back to Home" }));
     await waitFor(() => expect(screen.getByText("Wireless Headphones")).toBeTruthy());
     expect(store.getState().checkout.cart).toEqual({});
