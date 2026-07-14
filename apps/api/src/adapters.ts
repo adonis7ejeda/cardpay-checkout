@@ -76,8 +76,8 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
     const response = await this.post<{ data: { id: string } }>("/tokens/cards", {
       number: card.number,
       cvc: card.cvc,
-      // PROVIDER requires exp_month and exp_year as exactly two-digit strings
-      // ("06", "29"), matching /^\d{2}$/ - but the domain model/mobile input
+      // The payment provider requires exp_month and exp_year as exactly
+      // two-digit strings ("06", "29"), matching /^\d{2}$/ - but the domain model/mobile input
       // don't enforce that shape (a single-digit month like "1", or a
       // four-digit year like "2030", both pass this app's own validation).
       // Normalize only here, at the seam that talks to the real provider,
@@ -112,8 +112,8 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
     // The rest of this app's domain model (catalog prices, cart totals,
     // mobile display in apps/mobile/src/format.ts) represents money as
     // whole COP pesos, e.g. a $45,000 shirt is stored as amount: 45000.
-    // PROVIDER's wire format requires amount_in_cents as pesos * 100 (their
-    // docs: $95,000 COP -> 9500000), so this adapter - the one seam that
+    // The payment provider's wire format requires amount_in_cents as pesos *
+    // 100 (their docs: $95,000 COP -> 9500000), so this adapter - the one seam that
     // talks to the real provider - is responsible for that conversion.
     // Skipping it sends a value 100x too small, which the provider
     // rejects once it falls under its real minimum transaction amount.
