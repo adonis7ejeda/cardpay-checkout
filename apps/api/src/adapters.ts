@@ -1,12 +1,10 @@
 import type { CatalogItemDto, CartItemDto, DeliveryAssignmentDto, LocalTransactionDto, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
 import { mapProviderStatus } from "@cardpay/core";
 import { createProviderSignature } from "@cardpay/core/server";
+import { CATALOG_SEED } from "./catalog-data";
 import type { CatalogPort, PaymentProviderPort, StockPort, TransactionRecord, TransactionRepositoryPort } from "./ports";
 
-const products: CatalogItemDto[] = [
-  { id: "basic-tee", name: "Basic Tee", description: "Everyday cotton tee", unitPrice: { amount: 45000, currency: "COP" }, stockAvailable: 4, purchasable: true },
-  { id: "canvas-tote", name: "Canvas Tote", description: "Reusable checkout tote", unitPrice: { amount: 32000, currency: "COP" }, stockAvailable: 2, purchasable: true },
-];
+const products: CatalogItemDto[] = CATALOG_SEED;
 
 export class InMemoryCatalogAdapter implements CatalogPort, StockPort {
   private readonly stock = new Map(products.map((item) => [item.id, item.stockAvailable]));

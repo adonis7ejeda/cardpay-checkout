@@ -1,0 +1,6 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/cardpay-checkout.ts",
+  "context": {
+    "@aws-cdk/aws-apigateway:disableCloudWatchRole": false
+  }
+}
