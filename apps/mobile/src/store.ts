@@ -104,7 +104,7 @@ export async function submitPayment(store: CheckoutStore, api: ApiClient, today?
     return null;
   }
   const cartItems = cartItemsFromState(state);
-  const result = await api.submitPayment({ identity: state.identity, cartItems, totals: calculateCartTotals(cartItems), fakeCard: state.fakeCard });
+  const result = await api.submitPayment({ identity: state.identity, cartItems, totals: calculateCartTotals(cartItems), card: state.fakeCard, installments: 1 });
   store.dispatch(checkoutActions.paymentFinished(result));
   return result;
 }

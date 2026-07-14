@@ -21,6 +21,7 @@ export class CartItemRequestDto {
   @Min(1)
   quantity!: number;
 
+  @IsDefined()
   @ValidateNested()
   @Type(() => MoneyRequestDto)
   unitPrice!: MoneyRequestDto;
@@ -49,7 +50,7 @@ export class IdentityRequestDto {
   email!: string;
 }
 
-export class FakeCardRequestDto {
+export class CardRequestDto {
   @IsString()
   @IsNotEmpty()
   cardholderName!: string;
@@ -75,13 +76,13 @@ export class FakeCardRequestDto {
 class ValidFakeCardConstraint implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
     if (typeof value !== "object" || value === null) return false;
-    const input = value as FakeCardRequestDto;
-    if (!hasRequiredFakeCardFields(input)) return false;
+    const input = value as CardRequestDto;
+    if (!hasRequiredCardFields(input)) return false;
     return validateFakeCard(input).valid;
   }
 }
 
-function hasRequiredFakeCardFields(input: Partial<FakeCardRequestDto>): input is FakeCardRequestDto {
+function hasRequiredCardFields(input: Partial<CardRequestDto>): input is CardRequestDto {
   return [input.cardholderName, input.number, input.expirationMonth, input.expirationYear, input.cvc].every((value) => typeof value === "string");
 }
 
@@ -105,7 +106,11 @@ export class CreateTransactionDto {
 
   @IsDefined()
   @ValidateNested()
-  @Validate(ValidFakeCardConstraint, { message: "Valid fake Visa or Mastercard card data is required" })
-  @Type(() => FakeCardRequestDto)
-  fakeCard!: FakeCardRequestDto;
+  @Validate(ValidFakeCardConstraint, { message: "Valid Visa or Mastercard card data is required" })
+  @Type(() => CardRequestDto)
+  card!: CardRequestDto;
+
+  @IsInt()
+  @Min(1)
+  installments!: number;
 }

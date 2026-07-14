@@ -15,7 +15,11 @@ import {
   passesLuhn,
   succeeded,
   validateFakeCard,
-  validateIdentity
+  validateIdentity,
+  createProviderSignature,
+  mapProviderStatus,
+  sanitizeProviderReason,
+  shouldApplyFulfillment
 } from "./index";
 
 const cart: CartItemDto[] = [
@@ -34,6 +38,35 @@ describe("pricing rules", () => {
 
   it("rejects invalid money values", () => {
     expect(() => money(-1)).toThrow("non-negative integer");
+  });
+});
+
+describe("provider lifecycle rules", () => {
+  it("signs in the required reference, amount, currency, secret order", () => {
+    const signature = createProviderSignature("R", 1000, "COP", "test_integrity_secret");
+    expect(signature).toBe("52e777b72dd941c857753708d7d18837cd53c3d7ed837b24ac38f557e0f2cd76");
+    expect(signature).not.toBe(createProviderSignature("1000R", 0, "COP", "test_integrity_secret"));
+  });
+
+  it("maps provider terminal and technical statuses to local lifecycle statuses", () => {
+    expect(mapProviderStatus("APPROVED")).toBe("APPROVED");
+    expect(mapProviderStatus("DECLINED")).toBe("FAILED");
+    expect(mapProviderStatus("VOIDED")).toBe("FAILED");
+    expect(mapProviderStatus("ERROR")).toBe("RETRYABLE");
+    expect(mapProviderStatus("timeout")).toBe("RETRYABLE");
+    expect(mapProviderStatus("PENDING")).toBe("PENDING");
+  });
+
+  it("keeps sensitive card data out of provider-safe reasons", () => {
+    expect(sanitizeProviderReason("card 4111111111111111 cvc=123 declined")).toBe("card [redacted-card] cvc [redacted] declined");
+    expect(sanitizeProviderReason("card 4111 1111 1111 1111 was declined")).toBe("card [redacted-card] was declined");
+    expect(sanitizeProviderReason("card 4111-1111-1111-1111 was declined")).toBe("card [redacted-card] was declined");
+  });
+
+  it("allows stock and delivery only after approval", () => {
+    expect(shouldApplyFulfillment("APPROVED")).toBe(true);
+    expect(shouldApplyFulfillment("FAILED")).toBe(false);
+    expect(shouldApplyFulfillment("RETRYABLE")).toBe(false);
   });
 });
 
