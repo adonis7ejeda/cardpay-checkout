@@ -148,9 +148,35 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
       headers: { ...init.headers, Authorization: `Bearer ${this.required("PAYMENT_PROVIDER_PUBLIC_KEY")}` }
     });
     if (!response.ok) {
-      throw new Error(`Provider request failed (${response.status} ${init.method ?? "GET"} ${path})`);
+      const detail = await this.safeValidationDetail(response);
+      throw new Error(`Provider request failed (${response.status} ${init.method ?? "GET"} ${path})${detail ? `: ${detail}` : ""}`);
     }
     return (await response.json()) as T;
+  }
+
+  /**
+   * Extracts only the provider's own field-validation error type/field names
+   * (e.g. "acceptance_token: is required") for diagnostics. These are
+   * fixed, provider-authored strings describing which of OUR request
+   * fields failed validation and why - never an echo of submitted card,
+   * email, or personal data - so this is safe to log server-side even
+   * though the full response body is not (see the payment-provider fix
+   * history: an earlier attempt to log the raw body was rejected by
+   * review because it could have echoed unredacted PII/CVC).
+   */
+  private async safeValidationDetail(response: Response): Promise<string | undefined> {
+    try {
+      const body = (await response.json()) as { error?: { type?: string; messages?: Record<string, string[]> } };
+      if (!body.error) return undefined;
+      const fieldSummary = body.error.messages
+        ? Object.entries(body.error.messages)
+            .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
+            .join("; ")
+        : undefined;
+      return [body.error.type, fieldSummary].filter(Boolean).join(" - ");
+    } catch {
+      return undefined;
+    }
   }
 
   private required(name: "PAYMENT_PROVIDER_PUBLIC_KEY" | "PAYMENT_PROVIDER_INTEGRITY_SECRET" | "PAYMENT_PROVIDER_BASE_URL"): string {
