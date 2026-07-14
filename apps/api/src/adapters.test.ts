@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { EnvPaymentProviderAdapter } from "./adapters";
 
 describe("EnvPaymentProviderAdapter", () => {
@@ -71,6 +72,28 @@ describe("EnvPaymentProviderAdapter", () => {
     const body = JSON.parse(init.body as string);
     expect(body.acceptance_token).toBe("accept_tok_1");
     expect(body.accept_personal_auth).toBe("personal_auth_tok_1");
+  });
+
+  it("converts the domain's whole-peso amount to the provider's amount_in_cents, and signs the converted value", async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ data: { id: "provider_txn_1" } }));
+    const adapter = new EnvPaymentProviderAdapter(env);
+
+    await adapter.createTransaction({
+      reference: "REF-1",
+      amountInCents: 45000,
+      currency: "COP",
+      installments: 1,
+      cardToken: "card_tok_1",
+      acceptanceToken: "accept_tok_1",
+      personalDataAuthToken: "personal_auth_tok_1",
+      customerEmail: "ada@example.com"
+    });
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.amount_in_cents).toBe(4500000);
+    const expectedSignature = createHash("sha256").update(`REF-14500000COP${env.PAYMENT_PROVIDER_INTEGRITY_SECRET}`).digest("hex");
+    expect(body.signature).toBe(expectedSignature);
   });
 
   it("surfaces the provider's field-validation reasons without leaking submitted data", async () => {
