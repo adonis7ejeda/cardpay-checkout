@@ -31,6 +31,46 @@ describe("EnvPaymentProviderAdapter", () => {
     expect((init.headers as Record<string, string>).Authorization).toBe(`Bearer ${env.PAYMENT_PROVIDER_PUBLIC_KEY}`);
   });
 
+  it("normalizes expiration month and year to the two-digit format the provider requires", async () => {
+    const adapter = new EnvPaymentProviderAdapter(env);
+
+    await adapter.tokenizeCard({ cardholderName: "Ada Lovelace", number: "4242424242424242", expirationMonth: "6", expirationYear: "2029", cvc: "123" });
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.exp_month).toBe("06");
+    expect(body.exp_year).toBe("29");
+  });
+
+  it("leaves an already two-digit expiration month and year unchanged", async () => {
+    const adapter = new EnvPaymentProviderAdapter(env);
+
+    await adapter.tokenizeCard({ cardholderName: "Ada Lovelace", number: "4242424242424242", expirationMonth: "12", expirationYear: "30", cvc: "123" });
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.exp_month).toBe("12");
+    expect(body.exp_year).toBe("30");
+  });
+
+  it("rejects a malformed expiration month instead of sending a mangled value to the provider", async () => {
+    const adapter = new EnvPaymentProviderAdapter(env);
+
+    await expect(
+      adapter.tokenizeCard({ cardholderName: "Ada Lovelace", number: "4242424242424242", expirationMonth: "13", expirationYear: "30", cvc: "123" })
+    ).rejects.toThrow("Card expiration month must be between 01 and 12.");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed expiration year instead of silently truncating it", async () => {
+    const adapter = new EnvPaymentProviderAdapter(env);
+
+    await expect(
+      adapter.tokenizeCard({ cardholderName: "Ada Lovelace", number: "4242424242424242", expirationMonth: "12", expirationYear: "10000", cvc: "123" })
+    ).rejects.toThrow("Card expiration year must be 2 or 4 digits.");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("does not let per-call headers override the Authorization bearer token", async () => {
     fetchSpy.mockResolvedValue(
       jsonResponse({ data: { presigned_acceptance: { acceptance_token: "accept_tok_1" }, presigned_personal_data_auth: { acceptance_token: "personal_auth_tok_1" } } })

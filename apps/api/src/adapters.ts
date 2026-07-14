@@ -76,8 +76,14 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
     const response = await this.post<{ data: { id: string } }>("/tokens/cards", {
       number: card.number,
       cvc: card.cvc,
-      exp_month: card.expirationMonth,
-      exp_year: card.expirationYear,
+      // PROVIDER requires exp_month and exp_year as exactly two-digit strings
+      // ("06", "29"), matching /^\d{2}$/ - but the domain model/mobile input
+      // don't enforce that shape (a single-digit month like "1", or a
+      // four-digit year like "2030", both pass this app's own validation).
+      // Normalize only here, at the seam that talks to the real provider,
+      // rather than constraining the internal representation everywhere.
+      exp_month: twoDigitMonth(card.expirationMonth),
+      exp_year: twoDigitYear(card.expirationYear),
       card_holder: card.cardholderName
     });
     return { cardToken: response.data.id };
@@ -241,6 +247,22 @@ export class InMemoryTransactionRepository implements TransactionRepositoryPort 
 
 function last4(value: string): string {
   return value.replace(/\D/g, "").slice(-4);
+}
+
+function twoDigitMonth(month: string): string {
+  const padded = month.padStart(2, "0");
+  if (!/^(0[1-9]|1[0-2])$/.test(padded)) throw new Error("Card expiration month must be between 01 and 12.");
+  return padded;
+}
+
+function twoDigitYear(year: string): string {
+  // Only accept exactly 2 or exactly 4 digits: anything else (e.g. a
+  // malformed "10000") must be rejected outright rather than silently
+  // sliced into a plausible-looking but semantically wrong 2-digit value
+  // sent to the real provider as if it were the customer's actual year.
+  if (/^\d{2}$/.test(year)) return year;
+  if (/^\d{4}$/.test(year)) return year.slice(-2);
+  throw new Error("Card expiration year must be 2 or 4 digits.");
 }
 
 function hash(value: string): string {
