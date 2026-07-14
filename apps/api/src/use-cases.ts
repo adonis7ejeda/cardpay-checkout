@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import type { CatalogItemDto, DeliveryAssignmentDto, LocalTransactionDto, PaymentAttemptDto, TransactionResultDto } from "@cardpay/contracts";
 import { calculateCartTotals, mapProviderStatus, sanitizeProviderReason, shouldApplyFulfillment } from "@cardpay/core";
 import { CATALOG_PORT, PAYMENT_PROVIDER_PORT, STOCK_PORT, TRANSACTION_REPOSITORY_PORT } from "./tokens";
@@ -17,6 +17,8 @@ export class GetCatalogUseCase {
 
 @Injectable()
 export class CreateTransactionUseCase {
+  private readonly logger = new Logger(CreateTransactionUseCase.name);
+
   constructor(
     @Inject(CATALOG_PORT) private readonly catalog: CatalogPort,
     @Inject(STOCK_PORT) private readonly stock: StockPort,
@@ -52,7 +54,8 @@ export class CreateTransactionUseCase {
       transaction.providerTransactionId = providerTransactionId;
       transaction.status = mapProviderStatus(providerResult.status);
       transaction.safeReason = sanitizeProviderReason(providerResult.safeReason);
-    } catch {
+    } catch (error) {
+      this.logger.error(sanitizeProviderReason(error instanceof Error ? error.message : String(error)));
       transaction.status = "RETRYABLE";
       transaction.safeReason = "The payment provider could not process the request.";
     }
