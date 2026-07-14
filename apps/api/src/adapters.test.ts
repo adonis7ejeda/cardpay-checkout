@@ -72,4 +72,27 @@ describe("EnvPaymentProviderAdapter", () => {
     expect(body.acceptance_token).toBe("accept_tok_1");
     expect(body.accept_personal_auth).toBe("personal_auth_tok_1");
   });
+
+  it("surfaces the provider's field-validation reasons without leaking submitted data", async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: { type: "INPUT_VALIDATION_ERROR", messages: { accept_personal_auth: ["is required"] } } }),
+        { status: 422 }
+      )
+    );
+    const adapter = new EnvPaymentProviderAdapter(env);
+
+    await expect(
+      adapter.createTransaction({
+        reference: "REF-1",
+        amountInCents: 45000,
+        currency: "COP",
+        installments: 1,
+        cardToken: "card_tok_1",
+        acceptanceToken: "accept_tok_1",
+        personalDataAuthToken: "personal_auth_tok_1",
+        customerEmail: "ada@example.com"
+      })
+    ).rejects.toThrow("INPUT_VALIDATION_ERROR - accept_personal_auth: is required");
+  });
 });
