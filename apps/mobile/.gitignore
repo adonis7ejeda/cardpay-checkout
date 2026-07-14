@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# testing
+coverage/
+
+# React Native / Metro
+.watchmanconfig.local
+
+# Android
+android/build/
+android/app/build/
+android/.gradle/
+android/.cxx/
+android/local.properties
+*.keystore
+*.jks
+
+# misc
+*.log

@@ -1,14 +1,18 @@
 import { configureStore, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { calculateCartTotals, nextCartAfterOutcome, validateFakeCard, validateIdentity } from "@cardpay/core";
-import type { CartItemDto, CatalogItemDto, CheckoutIdentityDto, FakeCardInputDto, TransactionResultDto } from "@cardpay/contracts";
-import { loadCheckoutSnapshot, saveCheckoutSnapshot } from "./persistence";
+import type { CartItemDto, CatalogItemDto, CheckoutIdentityDto, FakeCardInputDto, PaymentAttemptDto, TransactionResultDto } from "@cardpay/contracts";
+import { loadCheckoutSnapshot, saveCheckoutSnapshot, toSafeSnapshot } from "./persistence";
 import type { ApiClient, PersistedCheckoutSnapshot, SecureStorageBoundary } from "./types";
+
+export const INSTALLMENT_OPTIONS = [1, 3, 6, 12, 18, 24] as const;
+const EMPTY_FAKE_CARD: FakeCardInputDto = { cardholderName: "", number: "", expirationMonth: "", expirationYear: "", cvc: "" };
 
 export interface CheckoutState {
   catalog: CatalogItemDto[];
   cart: Record<string, number>;
   identity: CheckoutIdentityDto;
   fakeCard: FakeCardInputDto;
+  installments: number;
   online: boolean;
   readOnlyCatalog: boolean;
   error?: string;
@@ -19,7 +23,8 @@ export const initialState: CheckoutState = {
   catalog: [],
   cart: {},
   identity: { fullName: "", email: "" },
-  fakeCard: { cardholderName: "", number: "", expirationMonth: "", expirationYear: "", cvc: "" },
+  fakeCard: EMPTY_FAKE_CARD,
+  installments: 1,
   online: true,
   readOnlyCatalog: false
 };
@@ -46,9 +51,15 @@ const checkoutSlice = createSlice({
     setFakeCard(state, action: PayloadAction<FakeCardInputDto>) {
       state.fakeCard = action.payload;
     },
+    setInstallments(state, action: PayloadAction<number>) {
+      state.installments = action.payload;
+    },
     paymentFinished(state, action: PayloadAction<TransactionResultDto>) {
       state.lastResult = action.payload;
       state.cart = Object.fromEntries(nextCartAfterOutcome(action.payload, cartItemsFromState(state)).map((item) => [item.productId, item.quantity]));
+      // PAN/CVC are transient submission inputs only: once the backend has
+      // responded (approved or declined) they must never linger in state.
+      state.fakeCard = EMPTY_FAKE_CARD;
     },
     setError(state, action: PayloadAction<string | undefined>) {
       state.error = action.payload;
@@ -81,6 +92,18 @@ export function canContinueToPayment(state: CheckoutState, today?: Date): boolea
   return state.online && validateIdentity(state.identity).valid && validateFakeCard(state.fakeCard, today).valid && cartItemsFromState(state).length > 0;
 }
 
+/** Maps checkout state to the exact wire DTO sent to the backend for tokenization + payment creation. */
+export function buildPaymentAttempt(state: CheckoutState): PaymentAttemptDto {
+  const cartItems = cartItemsFromState(state);
+  return {
+    identity: state.identity,
+    cartItems,
+    totals: calculateCartTotals(cartItems),
+    card: state.fakeCard,
+    installments: state.installments
+  };
+}
+
 export async function loadCatalog(store: CheckoutStore, api: ApiClient, storage: SecureStorageBoundary): Promise<void> {
   try {
     const items = await api.fetchCatalog();
@@ -103,15 +126,21 @@ export async function submitPayment(store: CheckoutStore, api: ApiClient, today?
     store.dispatch(checkoutActions.setError("Complete valid checkout details before paying"));
     return null;
   }
-  const cartItems = cartItemsFromState(state);
-  const result = await api.submitPayment({ identity: state.identity, cartItems, totals: calculateCartTotals(cartItems), card: state.fakeCard, installments: 1 });
-  store.dispatch(checkoutActions.paymentFinished(result));
-  return result;
+  try {
+    const result = await api.submitPayment(buildPaymentAttempt(state));
+    store.dispatch(checkoutActions.paymentFinished(result));
+    return result;
+  } catch {
+    // Network/backend-transport failure (no business result was ever returned):
+    // surface a retry-safe error and keep the entered card data intact so the
+    // user isn't forced to retype it, per design-brief.md's unhappy-path rule.
+    store.dispatch(checkoutActions.setError("We could not reach the payment service. Please try again."));
+    return null;
+  }
 }
 
 export async function persistCheckout(store: CheckoutStore, storage: SecureStorageBoundary): Promise<void> {
-  const state = store.getState().checkout;
-  await saveCheckoutSnapshot(storage, { catalog: state.catalog, cart: state.cart, identity: state.identity, updatedAt: new Date().toISOString() });
+  await saveCheckoutSnapshot(storage, toSafeSnapshot(store.getState().checkout));
 }
 
 export function selectCartTotals(state: CheckoutState) {
