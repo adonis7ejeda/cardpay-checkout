@@ -2,17 +2,42 @@
   "name": "@cardpay/mobile",
   "version": "0.1.0",
   "private": true,
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node -e \"console.log('Mobile TypeScript shell ready. Native runtime is deferred for this technical-test slice.')\"",
+    "android": "react-native run-android",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "start": "react-native start",
     "test": "jest",
     "coverage": "jest --coverage"
   },
   "dependencies": {
     "@cardpay/contracts": "workspace:*",
     "@cardpay/core": "workspace:*",
-    "@reduxjs/toolkit": "^2.5.0"
+    "@reduxjs/toolkit": "^2.5.0",
+    "react": "18.3.1",
+    "react-native": "0.76.5",
+    "react-native-keychain": "^10.0.0",
+    "react-redux": "^9.3.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.3",
+    "@babel/runtime": "^7.25.0",
+    "@react-native-community/cli": "15.0.1",
+    "@react-native-community/cli-platform-android": "15.0.1",
+    "@react-native/babel-preset": "0.76.5",
+    "@react-native/codegen": "0.76.5",
+    "@react-native/gradle-plugin": "0.76.5",
+    "@react-native/metro-config": "0.76.5",
+    "@react-native/typescript-config": "0.76.5",
+    "@testing-library/react-native": "^13.2.0",
+    "@types/react": "^18.2.6",
+    "@types/react-test-renderer": "^18.0.0",
+    "babel-jest": "^29.6.3",
+    "react-test-renderer": "18.3.1",
+    "typescript": "5.0.4"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

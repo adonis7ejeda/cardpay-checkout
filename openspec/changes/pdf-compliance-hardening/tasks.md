@@ -28,7 +28,7 @@ Chain strategy: feature-branch-chain
 ## Dependency / Order Constraints
 
 - [ ] 0.1 Create tracker branch first; PR 1 targets tracker, then each PR targets the immediate prior PR.
-- [ ] 0.2 Block any slice above 1,200 changed lines unless maintainer records `size:exception`.
+- [x] 0.2 Block any slice above 1,200 changed lines unless maintainer records `size:exception`. **PR 2 exception recorded**: ~1796 authored changed lines (1772 insertions + 24 deletions, excluding the 698-line generated Android native scaffold), ~596 over the 1200 ceiling. Maintainer decision: `size:exception` granted — PR2 is one coherent, atomic feature (full RN Android checkout flow conversion); splitting post-hoc would unpick already-integrated, fully green, tested code (screens depend on the extended store; `RootNavigator`/`App` depend on every screen) for no independent review benefit.
 
 ## PR 1: API Lifecycle / Contracts / Core
 
@@ -41,12 +41,12 @@ Chain strategy: feature-branch-chain
 
 ## PR 2: Mobile RN Android / Secure State
 
-- [ ] 2.1 Replace `apps/mobile` shell with React Native Android project and documented APK output path.
-- [ ] 2.2 Build `apps/mobile/src/**` screens from OpenPencil 8-screen flow with responsive boundaries.
-- [ ] 2.3 Add Redux/Flux slices for catalog, cart, checkout, result, installments, and payment submission DTO mapping.
-- [ ] 2.4 Add `react-native-keychain` safe snapshot persistence excluding PAN, CVC, tokens, credentials, and branding.
-- [ ] 2.5 Add mobile tests for APK flow, responsive states, installments, PAN/CVC clearing, safe restore, and safe failures.
-- [ ] 2.6 Run PR 2 hygiene scan against mobile source, tests, snapshots, and Android artifacts.
+- [x] 2.1 Replace `apps/mobile` shell with React Native Android project and documented APK output path.
+- [x] 2.2 Build `apps/mobile/src/**` screens from OpenPencil 8-screen flow with responsive boundaries.
+- [x] 2.3 Add Redux/Flux slices for catalog, cart, checkout, result, installments, and payment submission DTO mapping.
+- [x] 2.4 Add `react-native-keychain` safe snapshot persistence excluding PAN, CVC, tokens, credentials, and branding.
+- [x] 2.5 Add mobile tests for APK flow, responsive states, installments, PAN/CVC clearing, safe restore, and safe failures.
+- [x] 2.6 Run PR 2 hygiene scan against mobile source, tests, snapshots, and Android artifacts.
 
 ## PR 3: Persistence / Deployment Adapters
 

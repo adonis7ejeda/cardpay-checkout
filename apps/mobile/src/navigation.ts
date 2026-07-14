@@ -20,3 +20,9 @@ export function nextScreen(current: ScreenName, outcome?: "succeeded" | "failed"
 export function cancelBackdrop(current: ScreenName): ScreenName {
   return current === "CardInfo" || current === "PaymentSummary" ? "Checkout" : current;
 }
+
+export function previousScreen(current: ScreenName): ScreenName {
+  if (current === "Cart") return "Products";
+  if (current === "Checkout") return "Cart";
+  return current;
+}
