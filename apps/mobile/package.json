@@ -26,6 +26,8 @@
     "@react-native-community/cli": "15.0.1",
     "@react-native-community/cli-platform-android": "15.0.1",
     "@react-native/babel-preset": "0.76.5",
+    "@react-native/codegen": "0.76.5",
+    "@react-native/gradle-plugin": "0.76.5",
     "@react-native/metro-config": "0.76.5",
     "@react-native/typescript-config": "0.76.5",
     "@testing-library/react-native": "^13.2.0",
