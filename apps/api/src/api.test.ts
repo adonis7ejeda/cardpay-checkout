@@ -125,6 +125,28 @@ describe("checkout API", () => {
     await expect(request(app.getHttpServer()).get("/catalog")).resolves.toMatchObject({ body: expect.arrayContaining([expect.objectContaining({ id: "basic-tee", stockAvailable: 3 })]) });
   });
 
+  it("reconciles a PENDING transaction to succeeded via GET /transactions/:transactionId", async () => {
+    const poll = jest.spyOn(provider, "pollTransaction");
+    // Exhausts all MAX_PROVIDER_POLLS attempts during creation so the POST
+    // response itself comes back PENDING, matching the "returns pending
+    // provider semantics" test above.
+    poll.mockResolvedValue({ providerTransactionId: "provider_pending", status: "PENDING", safeReason: "Still pending" });
+
+    const created = await request(app.getHttpServer()).post("/transactions").send(attempt()).expect(201);
+    expect(created.body).toMatchObject({ status: "PENDING" });
+    const transactionId = created.body.transactionId as string;
+
+    poll.mockResolvedValueOnce({ providerTransactionId: "provider_pending", status: "APPROVED", safeReason: "Approved" });
+    const reconciled = await request(app.getHttpServer()).get(`/transactions/${transactionId}`).expect(200);
+
+    expect(reconciled.body).toMatchObject({ status: "succeeded" });
+    expect(reconciled.body.deliveryAssignment).toBeDefined();
+  });
+
+  it("returns 404 from GET /transactions/:transactionId for an unknown id", async () => {
+    await request(app.getHttpServer()).get("/transactions/txn_does_not_exist").expect(404);
+  });
+
   it("does not oversell stock when approved transactions race for the last unit", async () => {
     catalog.setStock("basic-tee", 1);
 

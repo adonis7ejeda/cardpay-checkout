@@ -14,7 +14,8 @@ describe("DynamoDbTransactionRepository", () => {
   const record: TransactionRecord = {
     result: { status: "succeeded", transactionId: "txn_1", message: "The payment was approved.", transaction: { transactionId: "txn_1", transactionNumber: "TX-1", reference: "REF-1", status: "APPROVED", amountInCents: 1000, currency: "COP", installments: 1 } },
     cartItems: [{ productId: "basic-tee", quantity: 1, unitPrice: { amount: 1000, currency: "COP" } }],
-    createdAt: "2026-01-01T00:00:00.000Z"
+    createdAt: "2026-01-01T00:00:00.000Z",
+    identity: { fullName: "Ada Lovelace", email: "ada@example.com" }
   };
 
   beforeEach(() => {
@@ -54,6 +55,56 @@ describe("DynamoDbTransactionRepository", () => {
     const all = await repository.all();
 
     expect(all).toEqual([]);
+  });
+
+  it("writes a top-level status attribute derived from the transaction's local status", async () => {
+    ddbMock.on(PutCommand).resolves({});
+
+    await repository.save(record);
+
+    const call = ddbMock.commandCalls(PutCommand)[0];
+    expect(call?.args[0].input).toMatchObject({ Item: { status: "APPROVED" } });
+  });
+
+  it("findById returns the parsed record for a matching transactionId", async () => {
+    ddbMock.on(GetCommand, { TableName: "cardpay-transactions-test", Key: { transactionId: "txn_1" } }).resolves({ Item: { transactionId: "txn_1", createdAt: record.createdAt, payload: JSON.stringify(record), status: "APPROVED" } });
+
+    const found = await repository.findById("txn_1");
+
+    expect(found).toEqual(record);
+  });
+
+  it("findById returns undefined when no item exists for that transactionId", async () => {
+    ddbMock.on(GetCommand).resolves({});
+
+    const found = await repository.findById("missing");
+
+    expect(found).toBeUndefined();
+  });
+
+  it("saveIfStatus writes conditionally and returns true when the stored status still matches", async () => {
+    ddbMock.on(PutCommand).resolves({});
+    const pending: TransactionRecord = { ...record, result: { status: "PENDING", transactionId: "txn_1", message: "The payment is still pending confirmation.", transaction: { transactionId: "txn_1", transactionNumber: "TX-1", reference: "REF-1", status: "PENDING", amountInCents: 1000, currency: "COP", installments: 1 } } };
+
+    const won = await repository.saveIfStatus(pending, "PENDING");
+
+    expect(won).toBe(true);
+    const call = ddbMock.commandCalls(PutCommand)[0];
+    expect(call?.args[0].input).toMatchObject({
+      TableName: "cardpay-transactions-test",
+      Item: { transactionId: "txn_1", status: "PENDING" },
+      ConditionExpression: "#status = :expected",
+      ExpressionAttributeNames: { "#status": "status" },
+      ExpressionAttributeValues: { ":expected": "PENDING" }
+    });
+  });
+
+  it("saveIfStatus returns false and does not overwrite when the conditional check fails (stale expected status)", async () => {
+    ddbMock.on(PutCommand).rejects(new ConditionalCheckFailedException({ message: "conditional failed", $metadata: {} }));
+
+    const won = await repository.saveIfStatus(record, "PENDING");
+
+    expect(won).toBe(false);
   });
 });
 

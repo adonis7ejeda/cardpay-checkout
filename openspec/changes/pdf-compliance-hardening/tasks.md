@@ -64,3 +64,17 @@ Chain strategy: feature-branch-chain
 - [ ] 4.2 Add verification scripts/tests for public hygiene: raw credentials/API keys, copied tokens, PAN/CVC persistence/logs/responses, and disallowed branding.
 - [ ] 4.3 Record final evidence for tests, harnesses, coverage/tooling gaps, OpenPencil fidelity, and chained PR boundaries.
 - [ ] 4.4 Verify each PR states scope, changed-line count, dependency, rollback boundary, and out-of-scope follow-up before review.
+
+## PR 5: Transaction Reconciliation Endpoint (out-of-band follow-up)
+
+Resolves the `provider-transaction-lifecycle` spec's "Bounded polling exhausted while still PENDING" scenario (line 78-82), which explicitly anticipates a follow-up poll, webhook, or manual reconciliation resolving a still-PENDING transaction later without re-creating its stock reservation. Branch `feat/pdf-hardening-transaction-reconciliation`, based on PR3's merged `feat/pdf-hardening-persistence-deployment`. Not part of the original PR1-4 breakdown; added as a direct user request after PR3 landed.
+
+- [x] 5.1 Add `findById`/`saveIfStatus` to `TransactionRepositoryPort` (`apps/api/src/ports.ts`), plus `identity: CheckoutIdentityDto` on `TransactionRecord`.
+- [x] 5.2 Implement `findById`/`saveIfStatus` on `InMemoryTransactionRepository` (`apps/api/src/adapters.ts`) and `DynamoDbTransactionRepository` (`apps/api/src/dynamodb-adapters.ts`, adding a top-level `status` attribute for conditional writes).
+- [x] 5.3 Extract shared provider-result-finalization logic (`computeTransactionOutcome` + `applyProviderResult`) in `apps/api/src/use-cases.ts`, reused by both `CreateTransactionUseCase` and the new `GetTransactionStatusUseCase`.
+- [x] 5.4 Add `GetTransactionStatusUseCase`: idempotent for already-terminal transactions, single (non-bounded-loop) poll for PENDING ones, race-safe commit via `saveIfStatus`.
+- [x] 5.5 Add `GET /transactions/:transactionId` to `CheckoutController`; wire `GetTransactionStatusUseCase` into `AppModule`.
+- [x] 5.6 Tests: `adapters.test.ts`, `dynamodb-adapters.test.ts`, new `get-transaction-status.test.ts` (6 cases incl. lost-race).
+- [x] 5.7 Fix mobile `API_BASE_URL` in `apps/mobile/src/App.tsx` to use `__DEV__` instead of `process.env.CARDPAY_API_BASE_URL` (Metro does not inline `process.env.*` without a babel plugin this project doesn't have).
+- [x] 5.8 Add `getTransactionStatus` to the mobile `ApiClient` interface/`HttpApiClient`, and bounded polling (4s interval, 15 attempts) in `RootNavigator.tsx` while a result is PENDING, without ever offering a resubmit action.
+- [x] 5.9 Tests: mobile `HttpApiClient.getTransactionStatus`, `RootNavigator` fake-timer polling test; existing "never offers a resubmit action for a still-PENDING transaction" test still passes unchanged.

@@ -223,3 +223,39 @@ Once Docker and a real AWS account became available, two more real bugs surfaced
 ## Notes (PR3)
 
 PR3 (Persistence/Deployment Adapters) is complete. Deferred scope remains final README/evidence/hygiene readiness pass (PR4).
+
+## PR 5: Transaction Reconciliation Endpoint — COMPLETE (out-of-band follow-up)
+
+Branch `feat/pdf-hardening-transaction-reconciliation`, based on PR3's merged `feat/pdf-hardening-persistence-deployment`. Direct user request, not part of the original PR1-4 breakdown: resolves the "Bounded polling exhausted while still PENDING" gap in `specs/provider-transaction-lifecycle/spec.md` (line 78-82) by adding a `GET /transactions/:transactionId` reconciliation endpoint, plus two mobile fixes (real deployed `API_BASE_URL`, PENDING-result polling).
+
+### Completed Tasks
+
+- [x] 5.1-5.6 Backend reconciliation endpoint: `apps/api/src/ports.ts` (`findById`/`saveIfStatus` on `TransactionRepositoryPort`, `identity` on `TransactionRecord`), `apps/api/src/adapters.ts` (`InMemoryTransactionRepository` upsert-by-id `save()`, `findById`/`saveIfStatus`), `apps/api/src/dynamodb-adapters.ts` (`DynamoDbTransactionRepository` top-level `status` attribute, `findById` via `GetCommand`, `saveIfStatus` via conditional `PutCommand`), `apps/api/src/use-cases.ts` (`computeTransactionOutcome`/`applyProviderResult` module-level shared helpers + new `GetTransactionStatusUseCase`), `apps/api/src/controllers.ts` (`GET transactions/:transactionId`), `apps/api/src/app.module.ts` (DI wiring). Tests: `adapters.test.ts`, `dynamodb-adapters.test.ts`, new `get-transaction-status.test.ts` (6 cases).
+- [x] 5.7 `apps/mobile/src/App.tsx`: replaced `process.env.CARDPAY_API_BASE_URL` (always `undefined` in real RN builds — Metro doesn't inline `process.env.*` without a babel plugin this project doesn't have) with `__DEV__ ? "http://localhost:3000" : DEPLOYED_API_BASE_URL`.
+- [x] 5.8-5.9 Mobile PENDING polling: `apps/mobile/src/types.ts`/`api.ts` (`getTransactionStatus` on `ApiClient`/`HttpApiClient`), `apps/mobile/src/RootNavigator.tsx` (bounded polling: 4s interval, 15 attempts, cleaned up via `useEffect` return, dispatches the existing `paymentFinished` action and switches screen once resolved). Fixture updates for the new `ApiClient` member across `mobile.test.ts`, `paymentSubmission.test.ts`, `appRestart.test.ts`, `RootNavigator.test.tsx`. New tests: `HttpApiClient.getTransactionStatus` (2 cases), `RootNavigator` fake-timer polling test (resolves PENDING -> succeeded, stops polling after resolution). Pre-existing "never offers a resubmit action for a still-PENDING transaction" test passes unchanged.
+
+### Two real bugs found and fixed during implementation (not present in the original task description)
+
+1. **TS narrowing loss across function boundaries**: `LocalTransactionDto.safeReason` is optional; splitting status-mapping (`applyProviderResult`) and outcome-decision (`computeTransactionOutcome`) into separate functions broke same-function-scope narrowing the original inline code relied on. Fixed with an explicit `transaction.safeReason ?? "The payment could not be completed."` fallback.
+2. **Reference-aliasing race-guard corruption (the important one)**: `findById` can return the SAME object reference still held inside the repository's own storage (true for the in-memory adapter). The original design draft would have mutated that returned `transaction` object's `status`/`safeReason` in place BEFORE calling `saveIfStatus(updatedRecord, "PENDING")` — which corrupts the "currently stored" comparison the CAS/optimistic-concurrency check relies on: the stored record's status would already reflect this call's own in-progress mutation by the time the conditional check ran, making `saveIfStatus` always report a false "lost race" against itself. Fixed by cloning (`{ ...record.result.transaction }`) before mutating, and by splitting the shared logic into a pure `computeTransactionOutcome` (decides shape + whether stock release is needed, no side effects) plus a caller-applied `stock.releaseStock` that `GetTransactionStatusUseCase` only invokes AFTER confirming it won the `saveIfStatus` race.
+
+### Deviations from Design
+
+- The task description asked for a private `finalizeProviderResult` method on `CreateTransactionUseCase` reused by both use cases. Implemented instead as module-level functions (`computeTransactionOutcome` + `applyProviderResult`) because `GetTransactionStatusUseCase`'s constructor — as explicitly specified in the request (`TRANSACTION_REPOSITORY_PORT`, `PAYMENT_PROVIDER_PORT`, `STOCK_PORT` only) — does not inject `CreateTransactionUseCase`, so a shared free function was the only way to reuse one code path without an unrequested DI edge.
+- `buildDeliveryAssignment`'s totals are recomputed via `calculateCartTotals(cartItems)` rather than read from a stored `totals` field, since `TransactionRecord` never persisted `CartTotalsDto` and the request didn't ask for that addition. Cart item unit prices are already server-verified equal to `attempt.totals` at creation time, so this is behavior-preserving.
+
+### Work Unit Evidence
+
+| Evidence | Required value |
+|---|---|
+| Focused test command and exact result | `pnpm --filter ./apps/api test` → PASS, 8 suites / 73 tests (was 51). `pnpm --filter ./apps/mobile test -- --coverage` → PASS, 20 suites / 98 tests (was 96), coverage 95.08%/88.2%/92.43%/96.03% (≥80% threshold). |
+| Runtime harness command/scenario and exact result | `pnpm --filter @cardpay/api build` → clean. `npx tsc -p apps/mobile/tsconfig.json --noEmit` → clean. `pnpm test` (whole workspace) → all green (contracts type-check, core 19/19, mobile 98/98, api 73/73). |
+| Rollback boundary | `apps/api/src/ports.ts`, `adapters.ts`, `dynamodb-adapters.ts`, `use-cases.ts`, `controllers.ts`, `app.module.ts`, `adapters.test.ts`, `dynamodb-adapters.test.ts`, `get-transaction-status.test.ts` (new); `apps/mobile/src/App.tsx`, `types.ts`, `api.ts`, `RootNavigator.tsx`, `mobile.test.ts`, `paymentSubmission.test.ts`, `appRestart.test.ts`, `RootNavigator.test.tsx`; plus this OpenSpec progress/tasks update. No PR1-4 files touched beyond these documented diffs. |
+
+### Verification Results
+
+- PASS: `pnpm --filter ./apps/api test` (73/73).
+- PASS: `pnpm --filter ./apps/mobile test -- --coverage` (98/98, coverage above threshold).
+- PASS: `pnpm test` (whole workspace, no regressions).
+- PASS: `pnpm --filter @cardpay/api build`.
+- PASS: `npx tsc -p apps/mobile/tsconfig.json --noEmit`.

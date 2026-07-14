@@ -10,7 +10,7 @@ const catalog: CatalogItemDto[] = [
 const validCard: FakeCardInputDto = { cardholderName: "Ada Lovelace", number: "4111111111111111", expirationMonth: "12", expirationYear: "2099", cvc: "123" };
 
 function offlineApi(): ApiClient {
-  return { fetchCatalog: jest.fn(async () => { throw new Error("offline"); }), submitPayment: jest.fn() };
+  return { fetchCatalog: jest.fn(async () => { throw new Error("offline"); }), submitPayment: jest.fn(), getTransactionStatus: jest.fn() };
 }
 
 describe("app restart recovery via the device keychain", () => {

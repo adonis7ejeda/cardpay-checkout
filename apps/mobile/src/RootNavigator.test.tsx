@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Provider } from "react-redux";
 import type { CatalogItemDto, TransactionResultDto } from "@cardpay/contracts";
 import { succeeded, failed } from "@cardpay/core";
@@ -13,7 +13,7 @@ const catalog: CatalogItemDto[] = [
 ];
 
 function buildApi(result: TransactionResultDto): ApiClient {
-  return { fetchCatalog: jest.fn(async () => catalog), submitPayment: jest.fn(async () => result) };
+  return { fetchCatalog: jest.fn(async () => catalog), submitPayment: jest.fn(async () => result), getTransactionStatus: jest.fn(async () => result) };
 }
 
 function renderApp(api: ApiClient, storage: SecureStorageBoundary = new MemorySecureStorage()) {
@@ -123,5 +123,62 @@ describe("RootNavigator end-to-end checkout flow", () => {
 
     fireEvent.press(screen.getByRole("button", { name: "Back to Home" }));
     await waitFor(() => expect(screen.getByText("Wireless Headphones")).toBeTruthy());
+  });
+
+  it("polls the reconciliation endpoint while a transaction remains PENDING, and updates the screen once it resolves", async () => {
+    jest.useFakeTimers({ legacyFakeTimers: false });
+    const pending: TransactionResultDto = {
+      status: "PENDING",
+      transactionId: "txn-6",
+      message: "The payment is still pending confirmation.",
+      transaction: { transactionId: "txn-6", transactionNumber: "TX-6", reference: "REF-6", status: "PENDING", amountInCents: 12000000, currency: "COP", installments: 1, providerTransactionId: "provider_txn_6" }
+    };
+    const resolved: TransactionResultDto = succeeded("txn-6");
+    const getTransactionStatus = jest.fn<Promise<TransactionResultDto>, [string]>().mockResolvedValueOnce(pending).mockResolvedValueOnce(resolved);
+    const api: ApiClient = { fetchCatalog: jest.fn(async () => catalog), submitPayment: jest.fn(async () => pending), getTransactionStatus };
+    const store = renderApp(api);
+
+    try {
+      await waitFor(() => expect(screen.getByText("Wireless Headphones")).toBeTruthy());
+      fireEvent.press(screen.getByRole("button", { name: "Add" }));
+      fireEvent.press(screen.getByTestId("cart-summary"));
+      fireEvent.press(screen.getByRole("button", { name: "Continue to Checkout" }));
+      fireEvent.changeText(screen.getByLabelText("Full name"), "Ada Lovelace");
+      fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
+      fireEvent.press(screen.getByRole("button", { name: "Pay with credit card" }));
+      fireEvent.changeText(screen.getByLabelText("Cardholder name"), "Ada Lovelace");
+      fireEvent.changeText(screen.getByLabelText("Card number"), "4111111111111111");
+      fireEvent.changeText(screen.getByLabelText("Expiration month"), "12");
+      fireEvent.changeText(screen.getByLabelText("Expiration year"), "2099");
+      fireEvent.changeText(screen.getByLabelText("CVC"), "123");
+      fireEvent.press(screen.getByRole("button", { name: "Continue" }));
+      fireEvent.press(screen.getByRole("button", { name: "Pay" }));
+
+      await waitFor(() => expect(screen.getByText("Payment pending")).toBeTruthy());
+      expect(getTransactionStatus).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(4000);
+      });
+      expect(getTransactionStatus).toHaveBeenCalledTimes(1);
+      expect(getTransactionStatus).toHaveBeenCalledWith("txn-6");
+      // First poll resolved to PENDING again: still on the pending screen, no store update yet.
+      expect(screen.getByText("Payment pending")).toBeTruthy();
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(4000);
+      });
+      expect(getTransactionStatus).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(screen.getByText("Payment approved")).toBeTruthy());
+      expect(store.getState().checkout.lastResult).toEqual(resolved);
+
+      // Polling must have stopped: advancing time further triggers no more calls.
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(20000);
+      });
+      expect(getTransactionStatus).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
