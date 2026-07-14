@@ -45,5 +45,5 @@ Chain strategy: feature-branch-chain
 
 ## Phase 4: Delivery / Verification
 
-- [ ] 4.1 Update `README.md` with setup, run, test, coverage, API, mobile, Android APK path, and secret hygiene guidance.
-- [ ] 4.2 Add verification checks for >80% mobile/API coverage and absence of raw credentials or sponsor-branded repo/code/UI copy.
+- [x] 4.1 Update `README.md` with setup, run, test, coverage, API, mobile, Android APK path, and secret hygiene guidance.
+- [x] 4.2 Add verification checks for >80% mobile/API coverage and absence of raw credentials or sponsor-branded repo/code/UI copy.
