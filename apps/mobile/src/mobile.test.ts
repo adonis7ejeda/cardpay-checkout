@@ -18,7 +18,7 @@ const validPaymentAttempt: PaymentAttemptDto = {
 };
 
 function api(result: TransactionResultDto = succeeded("txn-1"), items = catalog): ApiClient {
-  return { fetchCatalog: jest.fn(async () => items), submitPayment: jest.fn(async () => result) };
+  return { fetchCatalog: jest.fn(async () => items), submitPayment: jest.fn(async () => result), getTransactionStatus: jest.fn(async () => result) };
 }
 
 function readyStore() {
@@ -63,6 +63,16 @@ describe("mobile checkout shell", () => {
     const client = new HttpApiClient("https://api.example.test", fetcher);
     await expect(client.fetchCatalog()).rejects.toThrow("Catalog is unavailable");
     await expect(client.submitPayment(validPaymentAttempt)).rejects.toThrow("Payment submission is unavailable");
+    await expect(client.getTransactionStatus("txn-1")).rejects.toThrow("Transaction status is unavailable");
+  });
+
+  it("polls the reconciliation endpoint for a transaction's latest status", async () => {
+    const pending: TransactionResultDto = { status: "PENDING", transactionId: "txn-3", message: "The payment is still pending confirmation.", transaction: { transactionId: "txn-3", transactionNumber: "TX-3", reference: "REF-3", status: "PENDING", amountInCents: 240000, currency: "COP", installments: 1 } };
+    const fetcher = jest.fn(async () => ({ ok: true, json: async () => pending })) as unknown as typeof fetch;
+    const client = new HttpApiClient("https://api.example.test", fetcher);
+
+    await expect(client.getTransactionStatus("txn-3")).resolves.toEqual(pending);
+    expect(fetcher).toHaveBeenCalledWith("https://api.example.test/transactions/txn-3");
   });
 
   it("uses an offline snapshot as read-only catalog fallback", async () => {

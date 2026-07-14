@@ -3,7 +3,7 @@ import { createDefaultPaymentProvider, InMemoryCatalogAdapter, InMemoryTransacti
 import { CheckoutController } from "./controllers";
 import { createCatalogPort, createTransactionRepositoryPort } from "./persistence-config";
 import { CATALOG_PORT, PAYMENT_PROVIDER_PORT, STOCK_PORT, TRANSACTION_REPOSITORY_PORT } from "./tokens";
-import { CreateTransactionUseCase, GetCatalogUseCase } from "./use-cases";
+import { CreateTransactionUseCase, GetCatalogUseCase, GetTransactionStatusUseCase } from "./use-cases";
 
 @Module({
   controllers: [CheckoutController],
@@ -12,6 +12,7 @@ import { CreateTransactionUseCase, GetCatalogUseCase } from "./use-cases";
     InMemoryTransactionRepository,
     GetCatalogUseCase,
     CreateTransactionUseCase,
+    GetTransactionStatusUseCase,
     { provide: CATALOG_PORT, useFactory: (memory: InMemoryCatalogAdapter) => createCatalogPort(memory), inject: [InMemoryCatalogAdapter] },
     { provide: STOCK_PORT, useExisting: CATALOG_PORT },
     { provide: PAYMENT_PROVIDER_PORT, useFactory: () => createDefaultPaymentProvider() },

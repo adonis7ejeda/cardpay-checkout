@@ -1,4 +1,4 @@
-import type { CatalogItemDto, CartItemDto, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
+import type { CatalogItemDto, CartItemDto, CheckoutIdentityDto, LocalTransactionStatus, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
 
 export interface CatalogPort {
   list(): Promise<CatalogItemDto[]>;
@@ -30,9 +30,20 @@ export interface TransactionRecord {
   result: TransactionResultDto;
   cartItems: CartItemDto[];
   createdAt: string;
+  identity: CheckoutIdentityDto;
 }
 
 export interface TransactionRepositoryPort {
   save(record: TransactionRecord): Promise<TransactionRecord>;
   all(): Promise<TransactionRecord[]>;
+  findById(transactionId: string): Promise<TransactionRecord | undefined>;
+  /**
+   * Persists `record` only if the CURRENTLY STORED record for that
+   * transactionId still has status `expectedCurrentStatus`. Returns `true`
+   * if the write happened, `false` if the stored status had already moved
+   * on (a lost race, not an error) -- the guard preventing double
+   * stock-release or double delivery-assignment when two reconciliation
+   * calls race for the same still-PENDING transaction.
+   */
+  saveIfStatus(record: TransactionRecord, expectedCurrentStatus: LocalTransactionStatus): Promise<boolean>;
 }

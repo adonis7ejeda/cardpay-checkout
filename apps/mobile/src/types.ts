@@ -13,6 +13,7 @@ export type ScreenName =
 export interface ApiClient {
   fetchCatalog(): Promise<CatalogItemDto[]>;
   submitPayment(input: PaymentAttemptDto): Promise<TransactionResultDto>;
+  getTransactionStatus(transactionId: string): Promise<TransactionResultDto>;
 }
 
 export interface SecureStorageBoundary {
