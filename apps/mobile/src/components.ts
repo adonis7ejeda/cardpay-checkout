@@ -28,5 +28,6 @@ export function PaymentSummary(identity: CheckoutIdentityDto, items: CartItemDto
 }
 
 export function TransactionStatus(result: TransactionResultDto) {
-  return { title: result.status === "succeeded" ? "Payment approved" : "Payment could not be completed", message: result.message, retryable: result.status === "failed" ? result.retryable : false };
+  const title = result.status === "succeeded" ? "Payment approved" : result.status === "PENDING" ? "Payment pending" : "Payment could not be completed";
+  return { title, message: result.message, retryable: result.status === "failed" ? result.retryable : false };
 }

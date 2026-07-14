@@ -5,7 +5,7 @@ import type { INestApplication } from "@nestjs/common";
 import type { PaymentAttemptDto } from "@cardpay/contracts";
 import request from "supertest";
 import { AppModule } from "./app.module";
-import { DeterministicFakePaymentAdapter, InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./adapters";
+import { createDefaultPaymentProvider, DeterministicFakePaymentAdapter, EnvPaymentProviderAdapter, InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./adapters";
 import { PAYMENT_PROVIDER_PORT } from "./tokens";
 import { CreateTransactionUseCase } from "./use-cases";
 
@@ -13,7 +13,8 @@ const attempt = (cardNumber = "4111111111111111"): PaymentAttemptDto => ({
   identity: { fullName: "Ada Lovelace", email: "ada@example.com" },
   cartItems: [{ productId: "basic-tee", quantity: 1, unitPrice: { amount: 45000, currency: "COP" } }],
   totals: { subtotal: { amount: 45000, currency: "COP" }, total: { amount: 45000, currency: "COP" }, itemCount: 1 },
-  fakeCard: { cardholderName: "Ada Lovelace", number: cardNumber, expirationMonth: "12", expirationYear: "2030", cvc: "123" },
+  installments: 1,
+  card: { cardholderName: "Ada Lovelace", number: cardNumber, expirationMonth: "12", expirationYear: "2030", cvc: "123" },
 });
 
 describe("checkout API", () => {
@@ -24,6 +25,9 @@ describe("checkout API", () => {
   let createTransaction: CreateTransactionUseCase;
 
   beforeEach(async () => {
+    delete process.env.PAYMENT_PROVIDER_PUBLIC_KEY;
+    delete process.env.PAYMENT_PROVIDER_INTEGRITY_SECRET;
+    delete process.env.PAYMENT_PROVIDER_BASE_URL;
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
@@ -52,14 +56,13 @@ describe("checkout API", () => {
     expect(response.body).toEqual(expect.arrayContaining([expect.objectContaining({ id: "basic-tee", purchasable: false, stockAvailable: 0 })]));
   });
 
-  it("rejects unavailable stock before provider authorization", async () => {
+  it("rejects unavailable stock without creating delivery assignment", async () => {
     catalog.setStock("basic-tee", 0);
-    const authorize = jest.spyOn(provider, "authorize");
 
     const response = await request(app.getHttpServer()).post("/transactions").send(attempt()).expect(201);
 
-    expect(authorize).not.toHaveBeenCalled();
     expect(response.body).toMatchObject({ status: "failed", reasonCode: "stock_unavailable", retryable: false });
+    expect(response.body.deliveryAssignment).toBeUndefined();
   });
 
   it("rejects unknown products as unavailable stock", async () => {
@@ -71,11 +74,23 @@ describe("checkout API", () => {
     expect(response.body).toMatchObject({ status: "failed", reasonCode: "stock_unavailable" });
   });
 
+  it("rejects client-supplied totals that do not match the backend catalog", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/transactions")
+      .send({ ...attempt(), totals: { subtotal: { amount: 1, currency: "COP" }, total: { amount: 1, currency: "COP" }, itemCount: 1 } })
+      .expect(201);
+
+    expect(response.body).toMatchObject({ status: "failed", reasonCode: "validation_error", retryable: false });
+    expect(response.body.deliveryAssignment).toBeUndefined();
+  });
+
   it("persists successful transaction outcomes", async () => {
     const response = await request(app.getHttpServer()).post("/transactions").send(attempt()).expect(201);
     const records = await repo.all();
 
     expect(response.body).toMatchObject({ status: "succeeded", message: "The payment was approved." });
+    expect(response.body.transaction).toMatchObject({ status: "APPROVED", reference: expect.stringMatching(/^REF-/), installments: 1 });
+    expect(response.body.deliveryAssignment).toMatchObject({ customerEmail: "ada@example.com", currency: "COP" });
     expect(records).toHaveLength(1);
     expect(records[0]?.result.status).toBe("succeeded");
   });
@@ -84,18 +99,64 @@ describe("checkout API", () => {
     const response = await request(app.getHttpServer()).post("/transactions").send(attempt("4000000000020000")).expect(201);
     const records = await repo.all();
 
-    expect(response.body).toMatchObject({ status: "failed", reasonCode: "payment_declined", retryable: true });
+    expect(response.body).toMatchObject({ status: "failed", reasonCode: "payment_declined", retryable: false });
     expect(JSON.stringify(records)).not.toContain("4000000000020000");
     expect(JSON.stringify(records)).not.toContain("123");
   });
 
+  it("continues polling pending provider results before resolving approval", async () => {
+    const poll = jest.spyOn(provider, "pollTransaction");
+    poll.mockResolvedValueOnce({ providerTransactionId: "provider_pending", status: "PENDING", safeReason: "Still pending" });
+    poll.mockResolvedValueOnce({ providerTransactionId: "provider_pending", status: "APPROVED", safeReason: "Approved" });
+
+    const response = await request(app.getHttpServer()).post("/transactions").send(attempt()).expect(201);
+
+    expect(poll).toHaveBeenCalledTimes(2);
+    expect(response.body).toMatchObject({ status: "succeeded" });
+  });
+
+  it("returns pending provider semantics and keeps reserved stock when polling remains pending", async () => {
+    jest.spyOn(provider, "pollTransaction").mockResolvedValue({ providerTransactionId: "provider_pending", status: "PENDING", safeReason: "Still pending" });
+
+    const response = await request(app.getHttpServer()).post("/transactions").send(attempt()).expect(201);
+
+    expect(response.body).toMatchObject({ status: "PENDING", message: "The payment is still pending confirmation." });
+    expect(response.body.transaction).toMatchObject({ status: "PENDING" });
+    await expect(request(app.getHttpServer()).get("/catalog")).resolves.toMatchObject({ body: expect.arrayContaining([expect.objectContaining({ id: "basic-tee", stockAvailable: 3 })]) });
+  });
+
+  it("does not oversell stock when approved transactions race for the last unit", async () => {
+    catalog.setStock("basic-tee", 1);
+
+    const first = await request(app.getHttpServer()).post("/transactions").send(attempt()).expect(201);
+    const second = await request(app.getHttpServer()).post("/transactions").send(attempt()).expect(201);
+
+    expect(first.body).toMatchObject({ status: "succeeded" });
+    expect(first.body.deliveryAssignment).toBeDefined();
+    expect(second.body).toMatchObject({ status: "failed", reasonCode: "stock_unavailable", retryable: false });
+    expect(second.body.transaction).toMatchObject({ status: "FAILED", safeReason: "One or more items are no longer available." });
+    expect(second.body.deliveryAssignment).toBeUndefined();
+    await expect(request(app.getHttpServer()).get("/catalog")).resolves.toMatchObject({ body: expect.arrayContaining([expect.objectContaining({ id: "basic-tee", stockAvailable: 0 })]) });
+  });
+
+  it("does not call the provider after stock becomes unavailable", async () => {
+    catalog.setStock("basic-tee", 0);
+    const createProviderTransaction = jest.spyOn(provider, "createTransaction");
+
+    const response = await request(app.getHttpServer()).post("/transactions").send(attempt()).expect(201);
+
+    expect(response.body).toMatchObject({ status: "failed", reasonCode: "stock_unavailable" });
+    expect(createProviderTransaction).not.toHaveBeenCalled();
+  });
+
   it("converts provider errors into safe retryable failures", async () => {
-    jest.spyOn(provider, "authorize").mockRejectedValueOnce(new Error("provider exploded"));
+    jest.spyOn(provider, "createTransaction").mockRejectedValueOnce(new Error("provider exploded"));
 
     const response = await request(app.getHttpServer()).post("/transactions").send(attempt()).expect(201);
 
     expect(response.body).toMatchObject({ status: "failed", reasonCode: "provider_error", retryable: true });
     expect(response.body.message).not.toContain("exploded");
+    await expect(request(app.getHttpServer()).get("/catalog")).resolves.toMatchObject({ body: expect.arrayContaining([expect.objectContaining({ id: "basic-tee", stockAvailable: 4 })]) });
   });
 
   it("returns deterministic fake provider results for identical payment input", async () => {
@@ -126,7 +187,7 @@ describe("checkout API", () => {
     const payload = attempt();
     const execute = jest.spyOn(createTransaction, "execute");
     const authorize = jest.spyOn(provider, "authorize");
-    delete (payload.fakeCard as Partial<typeof payload.fakeCard>).number;
+    delete (payload.card as Partial<typeof payload.card>).number;
 
     await request(app.getHttpServer()).post("/transactions").send(payload).expect(400);
 
@@ -134,7 +195,7 @@ describe("checkout API", () => {
     expect(authorize).not.toHaveBeenCalled();
   });
 
-  it.each(["identity", "cartItems", "totals", "fakeCard"] as const)("rejects missing %s before checkout orchestration", async (section) => {
+  it.each(["identity", "cartItems", "totals", "card"] as const)("rejects missing %s before checkout orchestration", async (section) => {
     const payload: Partial<PaymentAttemptDto> = { ...attempt() };
     delete payload[section];
     const execute = jest.spyOn(createTransaction, "execute");
@@ -144,5 +205,57 @@ describe("checkout API", () => {
 
     expect(execute).not.toHaveBeenCalled();
     expect(authorize).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing cart item unit price before checkout orchestration", async () => {
+    const payload = { ...attempt(), cartItems: [{ productId: "basic-tee", quantity: 1 }] };
+    const execute = jest.spyOn(createTransaction, "execute");
+    const authorize = jest.spyOn(provider, "authorize");
+
+    await request(app.getHttpServer()).post("/transactions").send(payload).expect(400);
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+  });
+});
+
+describe("payment provider wiring", () => {
+  afterEach(() => {
+    delete process.env.PAYMENT_PROVIDER_PUBLIC_KEY;
+    delete process.env.PAYMENT_PROVIDER_INTEGRITY_SECRET;
+    delete process.env.PAYMENT_PROVIDER_BASE_URL;
+  });
+
+  it("uses the deterministic fake provider without env config", () => {
+    expect(createDefaultPaymentProvider({})).toBeInstanceOf(DeterministicFakePaymentAdapter);
+  });
+
+  it("uses the env-driven provider when all provider env placeholders are configured", () => {
+    expect(
+      createDefaultPaymentProvider({
+        PAYMENT_PROVIDER_PUBLIC_KEY: "public_key_placeholder",
+        PAYMENT_PROVIDER_INTEGRITY_SECRET: "integrity_secret_placeholder",
+        PAYMENT_PROVIDER_BASE_URL: "https://provider.example.test"
+      })
+    ).toBeInstanceOf(EnvPaymentProviderAdapter);
+  });
+
+  it("fails fast when provider env config is partial", () => {
+    expect(() => createDefaultPaymentProvider({ PAYMENT_PROVIDER_PUBLIC_KEY: "public_key_placeholder" })).toThrow("Payment provider environment configuration is incomplete.");
+  });
+
+  it("fails fast instead of using the fake provider when running in production without env config", () => {
+    expect(() => createDefaultPaymentProvider({ NODE_ENV: "production" })).toThrow("Payment provider environment configuration is missing in production.");
+  });
+
+  it("wires AppModule through the default provider factory", async () => {
+    process.env.PAYMENT_PROVIDER_PUBLIC_KEY = "public_key_placeholder";
+    process.env.PAYMENT_PROVIDER_INTEGRITY_SECRET = "integrity_secret_placeholder";
+    process.env.PAYMENT_PROVIDER_BASE_URL = "https://provider.example.test";
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+
+    expect(moduleRef.get(PAYMENT_PROVIDER_PORT)).toBeInstanceOf(EnvPaymentProviderAdapter);
+
+    await moduleRef.close();
   });
 });

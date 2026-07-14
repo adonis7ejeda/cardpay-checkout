@@ -11,9 +11,18 @@ export interface FakeCardInputDto {
   cvc: string;
 }
 
+export interface CardPaymentInputDto {
+  cardholderName: string;
+  number: string;
+  expirationMonth: string;
+  expirationYear: string;
+  cvc: string;
+}
+
 export interface PaymentAttemptDto {
   identity: CheckoutIdentityDto;
   cartItems: CartItemDto[];
   totals: CartTotalsDto;
-  fakeCard: FakeCardInputDto;
+  card: CardPaymentInputDto;
+  installments: number;
 }
