@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { useWindowDimensions } from "react-native";
-import { cancelBackdrop, nextScreen } from "./navigation";
+import { cancelBackdrop, nextScreen, previousScreen } from "./navigation";
 import {
   cartItemsFromState,
   checkoutActions,
@@ -14,6 +14,7 @@ import {
 } from "./store";
 import { formatMoney } from "./format";
 import type { ApiClient, ScreenName, SecureStorageBoundary } from "./types";
+import type { CartItemDto } from "@cardpay/contracts";
 import { SplashScreen } from "./screens/SplashScreen";
 import { HomeProductsScreen } from "./screens/HomeProductsScreen";
 import { SelectProductScreen } from "./screens/SelectProductScreen";
@@ -43,6 +44,7 @@ export function RootNavigator({ api, storage, today }: RootNavigatorProps) {
   const [screen, setScreen] = useState<ScreenName>("Splash");
   const [hydrating, setHydrating] = useState(true);
   const [isSubmitting, setSubmitting] = useState(false);
+  const [orderSnapshot, setOrderSnapshot] = useState<{ items: CartItemDto[]; totalLabel: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +80,9 @@ export function RootNavigator({ api, storage, today }: RootNavigatorProps) {
 
   async function handlePay() {
     setSubmitting(true);
+    // Captured before submitting: a successful payment clears the cart, and
+    // the result screen must still show what was actually charged/purchased.
+    setOrderSnapshot({ items, totalLabel: formatMoney(selectCartTotals(state).total) });
     const result = await submitPayment(store, api, today);
     setSubmitting(false);
     if (result) setScreen(nextScreen("PaymentSummary", result.status === "succeeded" ? "succeeded" : "failed"));
@@ -113,6 +118,7 @@ export function RootNavigator({ api, storage, today }: RootNavigatorProps) {
         onChangeQuantity={handleChangeQuantity}
         onRemove={(productId) => handleChangeQuantity(productId, 0)}
         onContinue={() => setScreen("Checkout")}
+        onBack={() => setScreen(previousScreen("Cart"))}
       />
     );
   }
@@ -122,9 +128,9 @@ export function RootNavigator({ api, storage, today }: RootNavigatorProps) {
     return (
       <TransactionStatusScreen
         result={state.lastResult}
-        totalLabel={formatMoney(selectCartTotals(state).total)}
+        totalLabel={orderSnapshot?.totalLabel ?? formatMoney(selectCartTotals(state).total)}
         timestamp={(today ?? new Date()).toISOString()}
-        items={items}
+        items={orderSnapshot?.items ?? items}
         productNames={productNames}
         onPrimaryAction={state.lastResult.status === "failed" ? () => setScreen("Checkout") : handleBackToHome}
       />
@@ -139,6 +145,8 @@ export function RootNavigator({ api, storage, today }: RootNavigatorProps) {
         identity={state.identity}
         onChangeIdentity={(field, value) => dispatch(checkoutActions.setIdentity({ ...state.identity, [field]: value }))}
         onPayWithCard={() => setScreen("CardInfo")}
+        onBack={() => setScreen(previousScreen("Checkout"))}
+        onBackToHome={handleBackToHome}
       />
       <CardInfoBackdrop
         open={screen === "CardInfo"}
@@ -154,6 +162,7 @@ export function RootNavigator({ api, storage, today }: RootNavigatorProps) {
         open={screen === "PaymentSummary"}
         card={state.fakeCard}
         items={items}
+        productNames={productNames}
         isSubmitting={isSubmitting}
         errorMessage={state.error}
         onCancel={() => setScreen(cancelBackdrop("PaymentSummary"))}

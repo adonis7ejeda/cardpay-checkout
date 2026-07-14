@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { FakeCardInputDto } from "@cardpay/contracts";
-import { validateFakeCard } from "@cardpay/core";
+import { onlyDigits, sanitizeCardholderName, validateFakeCard } from "@cardpay/core";
 import { BackdropShell } from "../ui/BackdropShell";
 import { PrimaryButton } from "../ui/PrimaryButton";
 import { INSTALLMENT_OPTIONS } from "../store";
@@ -30,7 +30,7 @@ export function CardInfoBackdrop({ open, value, installments, onChangeField, onC
         <TextInput
           accessibilityLabel="Cardholder name"
           value={value.cardholderName}
-          onChangeText={(text) => onChangeField("cardholderName", text)}
+          onChangeText={(text) => onChangeField("cardholderName", sanitizeCardholderName(text))}
           style={styles.input}
         />
         {validation.errors.cardholderName && <Text style={styles.error}>{validation.errors.cardholderName}</Text>}
@@ -39,7 +39,7 @@ export function CardInfoBackdrop({ open, value, installments, onChangeField, onC
         <TextInput
           accessibilityLabel="Card number"
           value={value.number}
-          onChangeText={(text) => onChangeField("number", text)}
+          onChangeText={(text) => onChangeField("number", onlyDigits(text))}
           keyboardType="number-pad"
           style={styles.input}
         />
@@ -51,7 +51,7 @@ export function CardInfoBackdrop({ open, value, installments, onChangeField, onC
             <TextInput
               accessibilityLabel="Expiration month"
               value={value.expirationMonth}
-              onChangeText={(text) => onChangeField("expirationMonth", text)}
+              onChangeText={(text) => onChangeField("expirationMonth", onlyDigits(text))}
               keyboardType="number-pad"
               style={styles.input}
             />
@@ -61,7 +61,7 @@ export function CardInfoBackdrop({ open, value, installments, onChangeField, onC
             <TextInput
               accessibilityLabel="Expiration year"
               value={value.expirationYear}
-              onChangeText={(text) => onChangeField("expirationYear", text)}
+              onChangeText={(text) => onChangeField("expirationYear", onlyDigits(text))}
               keyboardType="number-pad"
               style={styles.input}
             />
@@ -71,7 +71,7 @@ export function CardInfoBackdrop({ open, value, installments, onChangeField, onC
             <TextInput
               accessibilityLabel="CVC"
               value={value.cvc}
-              onChangeText={(text) => onChangeField("cvc", text)}
+              onChangeText={(text) => onChangeField("cvc", onlyDigits(text))}
               keyboardType="number-pad"
               secureTextEntry
               style={styles.input}

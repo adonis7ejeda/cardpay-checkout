@@ -1,5 +1,6 @@
 import type { CatalogItemDto, CartItemDto, DeliveryAssignmentDto, LocalTransactionDto, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
-import { createProviderSignature, mapProviderStatus } from "@cardpay/core";
+import { mapProviderStatus } from "@cardpay/core";
+import { createProviderSignature } from "@cardpay/core/server";
 import type { CatalogPort, PaymentProviderPort, StockPort, TransactionRecord, TransactionRepositoryPort } from "./ports";
 
 const products: CatalogItemDto[] = [

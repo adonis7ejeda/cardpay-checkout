@@ -10,6 +10,7 @@ coverage/
 # Android
 android/build/
 android/app/build/
+android/app/.cxx/
 android/.gradle/
 android/.cxx/
 android/local.properties

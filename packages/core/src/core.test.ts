@@ -16,11 +16,13 @@ import {
   succeeded,
   validateFakeCard,
   validateIdentity,
-  createProviderSignature,
   mapProviderStatus,
+  sanitizeFullName,
+  sanitizeCardholderName,
   sanitizeProviderReason,
   shouldApplyFulfillment
 } from "./index";
+import { createProviderSignature } from "./provider-signature";
 
 const cart: CartItemDto[] = [
   { productId: "p1", quantity: 2, unitPrice: { amount: 1200, currency: "COP" } },
@@ -91,6 +93,18 @@ describe("identity rules", () => {
       errors: { fullName: "Full name is required", email: "Valid email is required" }
     });
   });
+
+  it("rejects a full name containing digits", () => {
+    expect(validateIdentity({ fullName: "Ada4 Lovelace", email: "ada@example.com" })).toEqual({
+      valid: false,
+      errors: { fullName: "Full name can only contain letters and spaces" }
+    });
+  });
+
+  it("strips digits out of a full name as the user types", () => {
+    expect(sanitizeFullName("Ada4 Lovelace2")).toBe("Ada Lovelace");
+    expect(sanitizeFullName("O'Brien-Smith")).toBe("O'Brien-Smith");
+  });
 });
 
 describe("card rules", () => {
@@ -120,6 +134,28 @@ describe("card rules", () => {
     expect(
       validateFakeCard({ cardholderName: "", number: "123", expirationMonth: "01", expirationYear: "2025", cvc: "x" }, today).valid
     ).toBe(false);
+  });
+
+  it("rejects a cardholder name containing digits", () => {
+    expect(
+      validateFakeCard(
+        { cardholderName: "Ada4 Lovelace", number: "4111111111111111", expirationMonth: "12", expirationYear: "2026", cvc: "123" },
+        today
+      ).errors.cardholderName
+    ).toBe("Cardholder name can only contain letters and spaces");
+  });
+
+  it("strips digits out of a cardholder name as the user types", () => {
+    expect(sanitizeCardholderName("Ada4 Lovelace2")).toBe("Ada Lovelace");
+  });
+
+  it("rejects a card number containing letters even if it would otherwise pass Luhn", () => {
+    expect(
+      validateFakeCard(
+        { cardholderName: "Ada Lovelace", number: "411a111111111111b1", expirationMonth: "12", expirationYear: "2026", cvc: "123" },
+        today
+      ).errors.number
+    ).toBe("Card number can only contain digits");
   });
 });
 
