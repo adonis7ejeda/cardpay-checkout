@@ -128,7 +128,10 @@ export class EnvPaymentProviderAdapter implements PaymentProviderPort {
   }
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
-    const response = await fetch(`${this.required("PAYMENT_PROVIDER_BASE_URL")}${path}`, init);
+    const response = await fetch(`${this.required("PAYMENT_PROVIDER_BASE_URL")}${path}`, {
+      ...init,
+      headers: { ...init.headers, Authorization: `Bearer ${this.required("PAYMENT_PROVIDER_PUBLIC_KEY")}` }
+    });
     if (!response.ok) throw new Error("Provider request failed");
     return (await response.json()) as T;
   }
