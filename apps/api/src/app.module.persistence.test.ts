@@ -2,7 +2,8 @@ import "reflect-metadata";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { AppModule } from "./interface/app.module";
-import { InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./infrastructure/adapters";
+import { InMemoryCatalogAdapter } from "./infrastructure/catalog.adapter";
+import { InMemoryTransactionRepository } from "./infrastructure/transaction-repository.adapter";
 import { DynamoDbCatalogAdapter, DynamoDbTransactionRepository } from "./infrastructure/dynamodb-adapters";
 import { CATALOG_PORT, STOCK_PORT, TRANSACTION_REPOSITORY_PORT } from "./application/tokens";
 

@@ -59,7 +59,7 @@ export class CardpayCheckoutStack extends Stack {
     });
 
     // Provisioned for delivery assignment persistence per the deployment
-    // spec. The current API (`apps/api/src/infrastructure/adapters.ts` /
+    // spec. The current API (`apps/api/src/infrastructure/transaction-repository.adapter.ts` /
     // `dynamodb-adapters.ts`) still stores each delivery assignment nested
     // inside its transaction record via `TransactionRepositoryPort`, not
     // through a standalone delivery port/table yet -- see apply-progress
@@ -119,7 +119,7 @@ export class CardpayCheckoutStack extends Stack {
         // PAYMENT_PROVIDER_PUBLIC_KEY / PAYMENT_PROVIDER_INTEGRITY_SECRET /
         // PAYMENT_PROVIDER_BASE_URL are intentionally NOT set here. With
         // NODE_ENV=production and no payment provider config, the app's
-        // production guard (apps/api/src/infrastructure/adapters.ts) refuses to start
+        // production guard (apps/api/src/infrastructure/payment-provider.adapter.ts) refuses to start
         // rather than silently using the fake provider -- wiring the real
         // provider is an explicit, separate secret-management step the
         // operator must complete after deploying this stack.
