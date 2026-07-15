@@ -62,8 +62,8 @@ Chain strategy: feature-branch-chain
 - [x] 4.1 Update `README.md` with local fake run, DynamoDB Local, AWS deployment, APK path, verification, and secret guidance.
 - [x] 4.1.1 Build a release APK (`cd apps/mobile/android && ./gradlew assembleRelease`) and commit it to the repository (e.g. `apps/mobile/release/app-release.apk`), as an explicit exception to `apps/mobile/.gitignore`'s build-output exclusion — required per the test PDF's mobile requirement #7 and deliverable #3 ("upload the .apk ... in your repository ready to use").
 - [x] 4.2 Add verification scripts/tests for public hygiene: raw credentials/API keys, copied tokens, PAN/CVC persistence/logs/responses, and disallowed branding.
-- [ ] 4.3 Record final evidence for tests, harnesses, coverage/tooling gaps, OpenPencil fidelity, and chained PR boundaries.
-- [ ] 4.4 Verify each PR states scope, changed-line count, dependency, rollback boundary, and out-of-scope follow-up before review.
+- [x] 4.3 Record final evidence for tests, harnesses, coverage/tooling gaps, OpenPencil fidelity, and chained PR boundaries.
+- [x] 4.4 Verify each PR states scope, changed-line count, dependency, rollback boundary, and out-of-scope follow-up before review.
 
 ## PR 5: Transaction Reconciliation Endpoint (out-of-band follow-up)
 
