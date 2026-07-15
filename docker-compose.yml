@@ -29,7 +29,7 @@ services:
       # NODE_ENV overrides the "production" value baked into the Dockerfile's
       # runtime image. This compose file is a local/self-hosted parity tool,
       # not the real deployment target (that's the CDK-deployed Lambda, which
-      # correctly sets NODE_ENV=production itself). apps/api/src/adapters.ts's
+      # correctly sets NODE_ENV=production itself). apps/api/src/infrastructure/adapters.ts's
       # and persistence-config.ts's production guards require real payment
       # provider/DynamoDB configuration whenever NODE_ENV=production, so
       # inheriting that value here would break this file's own documented

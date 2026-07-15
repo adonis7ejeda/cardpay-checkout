@@ -11,17 +11,17 @@ import {
   submitPayment,
   type CheckoutState,
   type CheckoutStore
-} from "./store";
-import { formatMoney } from "./format";
-import type { ApiClient, ScreenName, SecureStorageBoundary } from "./types";
+} from "../state/store";
+import { formatMoney } from "../format";
+import type { ApiClient, ScreenName, SecureStorageBoundary } from "../ports";
 import type { CartItemDto } from "@cardpay/contracts";
-import { SplashScreen } from "./screens/SplashScreen";
-import { HomeProductsScreen } from "./screens/HomeProductsScreen";
-import { SelectProductScreen } from "./screens/SelectProductScreen";
-import { CheckoutScreen } from "./screens/CheckoutScreen";
-import { CardInfoBackdrop } from "./screens/CardInfoBackdrop";
-import { PaymentSummaryBackdrop } from "./screens/PaymentSummaryBackdrop";
-import { TransactionStatusScreen } from "./screens/TransactionStatusScreen";
+import { SplashScreen } from "../screens/SplashScreen";
+import { HomeProductsScreen } from "../screens/HomeProductsScreen";
+import { SelectProductScreen } from "../screens/SelectProductScreen";
+import { CheckoutScreen } from "../screens/CheckoutScreen";
+import { CardInfoBackdrop } from "../screens/CardInfoBackdrop";
+import { PaymentSummaryBackdrop } from "../screens/PaymentSummaryBackdrop";
+import { TransactionStatusScreen } from "../screens/TransactionStatusScreen";
 
 export interface RootNavigatorProps {
   api: ApiClient;

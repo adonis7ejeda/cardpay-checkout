@@ -3,7 +3,7 @@ import { GetCommand, PutCommand, ScanCommand, UpdateCommand } from "@aws-sdk/lib
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { CartItemDto, CatalogItemDto, LocalTransactionStatus } from "@cardpay/contracts";
 import { CATALOG_SEED } from "./catalog-data";
-import type { CatalogPort, StockPort, TransactionRecord, TransactionRepositoryPort } from "./ports";
+import type { CatalogPort, StockPort, TransactionRecord, TransactionRepositoryPort } from "../application/ports";
 
 export class DynamoDbTransactionRepository implements TransactionRepositoryPort {
   constructor(

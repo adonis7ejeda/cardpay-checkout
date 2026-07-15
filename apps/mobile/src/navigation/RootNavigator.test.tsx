@@ -4,9 +4,9 @@ import { Provider } from "react-redux";
 import type { CatalogItemDto, TransactionResultDto } from "@cardpay/contracts";
 import { succeeded, failed } from "@cardpay/core";
 import { RootNavigator } from "./RootNavigator";
-import { createCheckoutStore } from "./store";
-import type { ApiClient, SecureStorageBoundary } from "./types";
-import { MemorySecureStorage } from "./persistence";
+import { createCheckoutStore } from "../state/store";
+import type { ApiClient, SecureStorageBoundary } from "../ports";
+import { MemorySecureStorage } from "../state/persistence";
 
 const catalog: CatalogItemDto[] = [
   { id: "sku-1", name: "Wireless Headphones", description: "Noise-isolating audio", unitPrice: { amount: 120000, currency: "COP" }, stockAvailable: 4, purchasable: true }

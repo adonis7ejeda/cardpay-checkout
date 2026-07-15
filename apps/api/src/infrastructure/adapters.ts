@@ -2,7 +2,7 @@ import type { CatalogItemDto, CartItemDto, DeliveryAssignmentDto, LocalTransacti
 import { mapProviderStatus } from "@cardpay/core";
 import { createProviderSignature } from "@cardpay/core/server";
 import { CATALOG_SEED } from "./catalog-data";
-import type { CatalogPort, PaymentProviderPort, StockPort, TransactionRecord, TransactionRepositoryPort } from "./ports";
+import type { CatalogPort, PaymentProviderPort, StockPort, TransactionRecord, TransactionRepositoryPort } from "../application/ports";
 
 const products: CatalogItemDto[] = CATALOG_SEED;
 

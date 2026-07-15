@@ -1,5 +1,5 @@
 import type { CatalogItemDto, PaymentAttemptDto, TransactionResultDto } from "@cardpay/contracts";
-import type { ApiClient } from "./types";
+import type { ApiClient } from "../ports";
 
 export class HttpApiClient implements ApiClient {
   constructor(private readonly baseUrl: string, private readonly fetcher: typeof fetch = fetch) {}

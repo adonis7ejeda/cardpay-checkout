@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { EnvPaymentProviderAdapter, InMemoryTransactionRepository } from "./adapters";
-import type { TransactionRecord } from "./ports";
+import type { TransactionRecord } from "../application/ports";
 
 describe("EnvPaymentProviderAdapter", () => {
   const env = {

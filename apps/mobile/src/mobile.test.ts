@@ -1,11 +1,11 @@
 import { failed, succeeded } from "@cardpay/core";
 import type { CatalogItemDto, FakeCardInputDto, PaymentAttemptDto, TransactionResultDto } from "@cardpay/contracts";
 import { BackdropShell, CardForm, PaymentSummary, ProductCard, TransactionStatus } from "./components";
-import { HttpApiClient } from "./api";
-import { cancelBackdrop, checkoutScreens, nextScreen } from "./navigation";
-import { loadCheckoutSnapshot, MemorySecureStorage } from "./persistence";
-import { canContinueToPayment, checkoutActions, createCheckoutStore, loadCatalog, persistCheckout, selectCartTotals, submitPayment } from "./store";
-import type { ApiClient } from "./types";
+import { HttpApiClient } from "./adapters/api";
+import { cancelBackdrop, checkoutScreens, nextScreen } from "./navigation/navigation";
+import { loadCheckoutSnapshot, MemorySecureStorage } from "./state/persistence";
+import { canContinueToPayment, checkoutActions, createCheckoutStore, loadCatalog, persistCheckout, selectCartTotals, submitPayment } from "./state/store";
+import type { ApiClient } from "./ports";
 
 const catalog: CatalogItemDto[] = [{ id: "sku-1", name: "Wireless Headphones", description: "Noise-isolating audio", unitPrice: { amount: 120000, currency: "COP" }, stockAvailable: 4, purchasable: true }];
 const validCard: FakeCardInputDto = { cardholderName: "Ada Lovelace", number: "4111111111111111", expirationMonth: "12", expirationYear: "2099", cvc: "123" };

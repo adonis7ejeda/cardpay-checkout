@@ -1,4 +1,4 @@
-import type { ScreenName } from "./types";
+import type { ScreenName } from "../ports";
 
 export const checkoutScreens: ScreenName[] = [
   "Splash",

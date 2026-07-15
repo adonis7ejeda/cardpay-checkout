@@ -3,7 +3,7 @@ import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand, UpdateComm
 import { mockClient } from "aws-sdk-client-mock";
 import type { CartItemDto } from "@cardpay/contracts";
 import { DynamoDbCatalogAdapter, DynamoDbTransactionRepository } from "./dynamodb-adapters";
-import type { TransactionRecord } from "./ports";
+import type { TransactionRecord } from "../application/ports";
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 

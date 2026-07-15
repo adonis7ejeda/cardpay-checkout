@@ -1,7 +1,7 @@
 import { failed, succeeded } from "@cardpay/core";
 import type { CatalogItemDto, FakeCardInputDto, TransactionResultDto } from "@cardpay/contracts";
-import { buildPaymentAttempt, checkoutActions, createCheckoutStore, submitPayment } from "./store";
-import type { ApiClient } from "./types";
+import { buildPaymentAttempt, checkoutActions, createCheckoutStore, submitPayment } from "./state/store";
+import type { ApiClient } from "./ports";
 
 const catalog: CatalogItemDto[] = [
   { id: "sku-1", name: "Wireless Headphones", description: "Noise-isolating audio", unitPrice: { amount: 120000, currency: "COP" }, stockAvailable: 4, purchasable: true }

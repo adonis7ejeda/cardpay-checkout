@@ -1,4 +1,4 @@
-import type { PersistedCheckoutSnapshot, SecureStorageBoundary } from "./types";
+import type { PersistedCheckoutSnapshot, SecureStorageBoundary } from "../ports";
 import type { CheckoutState } from "./store";
 
 export const CHECKOUT_STATE_KEY = "checkout-state-v1";

@@ -1,10 +1,10 @@
 import "reflect-metadata";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
-import { AppModule } from "./app.module";
-import { InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./adapters";
-import { DynamoDbCatalogAdapter, DynamoDbTransactionRepository } from "./dynamodb-adapters";
-import { CATALOG_PORT, STOCK_PORT, TRANSACTION_REPOSITORY_PORT } from "./tokens";
+import { AppModule } from "./interface/app.module";
+import { InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./infrastructure/adapters";
+import { DynamoDbCatalogAdapter, DynamoDbTransactionRepository } from "./infrastructure/dynamodb-adapters";
+import { CATALOG_PORT, STOCK_PORT, TRANSACTION_REPOSITORY_PORT } from "./application/tokens";
 
 describe("AppModule persistence wiring", () => {
   const clearEnv = () => {

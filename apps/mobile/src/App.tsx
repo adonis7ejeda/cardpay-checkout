@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import Config from "react-native-config";
 import { Provider } from "react-redux";
-import { HttpApiClient } from "./api";
-import { KeychainSecureStorage } from "./keychainStorage";
-import { RootNavigator } from "./RootNavigator";
-import { createCheckoutStore } from "./store";
+import { HttpApiClient } from "./adapters/api";
+import { KeychainSecureStorage } from "./adapters/keychainStorage";
+import { RootNavigator } from "./navigation/RootNavigator";
+import { createCheckoutStore } from "./state/store";
 
 /**
  * Backend base URL, no sponsor-specific or credentialed default.

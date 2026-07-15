@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import type { CatalogItemDto, TransactionResultDto } from "@cardpay/contracts";
 import { CreateTransactionDto } from "./dto";
-import { CreateTransactionUseCase, GetCatalogUseCase, GetTransactionStatusUseCase } from "./use-cases";
+import { CreateTransactionUseCase, GetCatalogUseCase, GetTransactionStatusUseCase } from "../application/use-cases";
 
 @Controller()
 export class CheckoutController {
