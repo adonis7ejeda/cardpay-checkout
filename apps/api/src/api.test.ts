@@ -5,7 +5,9 @@ import type { INestApplication } from "@nestjs/common";
 import type { PaymentAttemptDto } from "@cardpay/contracts";
 import request from "supertest";
 import { AppModule } from "./interface/app.module";
-import { createDefaultPaymentProvider, DeterministicFakePaymentAdapter, EnvPaymentProviderAdapter, InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./infrastructure/adapters";
+import { createDefaultPaymentProvider, DeterministicFakePaymentAdapter, EnvPaymentProviderAdapter } from "./infrastructure/payment-provider.adapter";
+import { InMemoryCatalogAdapter } from "./infrastructure/catalog.adapter";
+import { InMemoryTransactionRepository } from "./infrastructure/transaction-repository.adapter";
 import { PAYMENT_PROVIDER_PORT } from "./application/tokens";
 import { CreateTransactionUseCase } from "./application/use-cases";
 

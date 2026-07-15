@@ -1,39 +1,7 @@
-import type { CatalogItemDto, CartItemDto, DeliveryAssignmentDto, LocalTransactionDto, LocalTransactionStatus, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
+import type { DeliveryAssignmentDto, LocalTransactionDto, PaymentAttemptDto, ProviderTransactionResultDto, TransactionResultDto } from "@cardpay/contracts";
 import { mapProviderStatus } from "@cardpay/core";
 import { createProviderSignature } from "@cardpay/core/server";
-import { CATALOG_SEED } from "./catalog-data";
-import type { CatalogPort, PaymentProviderPort, StockPort, TransactionRecord, TransactionRepositoryPort } from "../application/ports";
-
-const products: CatalogItemDto[] = CATALOG_SEED;
-
-export class InMemoryCatalogAdapter implements CatalogPort, StockPort {
-  private readonly stock = new Map(products.map((item) => [item.id, item.stockAvailable]));
-
-  async list(): Promise<CatalogItemDto[]> {
-    return products.map((item) => {
-      const stockAvailable = this.stock.get(item.id) ?? 0;
-      return { ...item, stockAvailable, purchasable: stockAvailable > 0 };
-    });
-  }
-
-  async reserveStock(items: CartItemDto[]): Promise<boolean> {
-    const available = items.every((item) => {
-      const stockAvailable = this.stock.get(item.productId);
-      return stockAvailable !== undefined && item.quantity <= stockAvailable;
-    });
-    if (!available) return false;
-    for (const item of items) this.stock.set(item.productId, (this.stock.get(item.productId) ?? item.quantity) - item.quantity);
-    return true;
-  }
-
-  async releaseStock(items: CartItemDto[]): Promise<void> {
-    for (const item of items) this.stock.set(item.productId, (this.stock.get(item.productId) ?? 0) + item.quantity);
-  }
-
-  setStock(productId: string, quantity: number): void {
-    this.stock.set(productId, quantity);
-  }
-}
+import type { PaymentProviderPort } from "../application/ports";
 
 export class DeterministicFakePaymentAdapter implements PaymentProviderPort {
   private nextStatus: ProviderTransactionResultDto["status"] = "APPROVED";
@@ -210,39 +178,6 @@ export function createDefaultPaymentProvider(env: NodeJS.ProcessEnv = process.en
   }
   if (configured.length === required.length) return new EnvPaymentProviderAdapter(env);
   throw new Error("Payment provider environment configuration is incomplete.");
-}
-
-export class InMemoryTransactionRepository implements TransactionRepositoryPort {
-  private readonly records: TransactionRecord[] = [];
-
-  async save(record: TransactionRecord): Promise<TransactionRecord> {
-    const index = this.records.findIndex((existing) => existing.result.transactionId === record.result.transactionId);
-    if (index === -1) this.records.push(record);
-    else this.records[index] = record;
-    return record;
-  }
-
-  async all(): Promise<TransactionRecord[]> {
-    return [...this.records];
-  }
-
-  async findById(transactionId: string): Promise<TransactionRecord | undefined> {
-    return this.records.find((record) => record.result.transactionId === transactionId);
-  }
-
-  async saveIfStatus(record: TransactionRecord, expectedCurrentStatus: LocalTransactionStatus): Promise<boolean> {
-    // Check-then-write with no `await` between them: an async function body
-    // runs synchronously up to its first `await`, so keeping both the read
-    // and the write in that same synchronous span (rather than two separate
-    // awaited calls) prevents another concurrent saveIfStatus call from
-    // interleaving between the check and the write - the same atomicity
-    // DynamoDbTransactionRepository gets from a ConditionExpression, without
-    // a real database underneath.
-    const index = this.records.findIndex((existing) => existing.result.transactionId === record.result.transactionId);
-    if (index === -1 || this.records[index]!.result.transaction?.status !== expectedCurrentStatus) return false;
-    this.records[index] = record;
-    return true;
-  }
 }
 
 function last4(value: string): string {

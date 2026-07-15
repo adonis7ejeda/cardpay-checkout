@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
-import { createDefaultPaymentProvider, InMemoryCatalogAdapter, InMemoryTransactionRepository } from "../infrastructure/adapters";
+import { createDefaultPaymentProvider } from "../infrastructure/payment-provider.adapter";
+import { InMemoryCatalogAdapter } from "../infrastructure/catalog.adapter";
+import { InMemoryTransactionRepository } from "../infrastructure/transaction-repository.adapter";
 import { CheckoutController } from "./controllers";
 import { createCatalogPort, createTransactionRepositoryPort } from "../infrastructure/persistence-config";
 import { CATALOG_PORT, PAYMENT_PROVIDER_PORT, STOCK_PORT, TRANSACTION_REPOSITORY_PORT } from "../application/tokens";

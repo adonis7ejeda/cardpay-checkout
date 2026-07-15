@@ -1,4 +1,5 @@
-import { InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./adapters";
+import { InMemoryCatalogAdapter } from "./catalog.adapter";
+import { InMemoryTransactionRepository } from "./transaction-repository.adapter";
 import { DynamoDbCatalogAdapter, DynamoDbTransactionRepository } from "./dynamodb-adapters";
 import { createCatalogPort, createTransactionRepositoryPort } from "./persistence-config";
 
