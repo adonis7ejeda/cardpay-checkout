@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/dist
+**/coverage
+apps/mobile
+!apps/mobile/package.json
+.git
+.github
+openspec
+*.md
+Dockerfile
+docker-compose.yml
+infra/cdk.out
+infra/node_modules

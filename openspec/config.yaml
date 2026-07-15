@@ -1,0 +1,39 @@
+schema: spec-driven
+project: cardpay checkout
+persistence: hybrid
+
+context: |
+  Tech stack: not yet detected; the repository currently contains only design artifacts and OpenPencil assets.
+  Architecture: cardpay-checkout payment checkout flow; no application source tree is present yet.
+  Testing: no runner, coverage tool, linter, type checker, or formatter was detected; strict_tdd is false for now.
+  Style: use generic payment terminology only; never persist or log sandbox secrets.
+
+testing:
+  strict_tdd: false
+  runner: none
+  test_layers: []
+  coverage: none
+  linter: none
+  type_checker: none
+  formatter: none
+
+rules:
+  proposal:
+    - Keep the sponsor company name out of repo, code, comments, and UI copy.
+    - Treat sandbox credentials as environment-provided secrets; never persist raw values.
+  specs:
+    - Use RFC 2119 keywords.
+    - Write scenarios with Given/When/Then.
+  design:
+    - Preserve the existing 8-screen OpenPencil flow.
+    - Use generic payment provider terminology only.
+  tasks:
+    - Group work into small reviewable slices.
+  apply:
+    tdd: false
+    guidelines:
+      - Follow existing project conventions when code is added.
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
