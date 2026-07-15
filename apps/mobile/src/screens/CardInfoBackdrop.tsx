@@ -4,7 +4,7 @@ import type { FakeCardInputDto } from "@cardpay/contracts";
 import { onlyDigits, sanitizeCardholderName, validateFakeCard } from "@cardpay/core";
 import { BackdropShell } from "../ui/BackdropShell";
 import { PrimaryButton } from "../ui/PrimaryButton";
-import { INSTALLMENT_OPTIONS } from "../store";
+import { INSTALLMENT_OPTIONS } from "../state/store";
 
 export interface CardInfoBackdropProps {
   open: boolean;

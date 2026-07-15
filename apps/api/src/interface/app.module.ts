@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
-import { createDefaultPaymentProvider, InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./adapters";
+import { createDefaultPaymentProvider, InMemoryCatalogAdapter, InMemoryTransactionRepository } from "../infrastructure/adapters";
 import { CheckoutController } from "./controllers";
-import { createCatalogPort, createTransactionRepositoryPort } from "./persistence-config";
-import { CATALOG_PORT, PAYMENT_PROVIDER_PORT, STOCK_PORT, TRANSACTION_REPOSITORY_PORT } from "./tokens";
-import { CreateTransactionUseCase, GetCatalogUseCase, GetTransactionStatusUseCase } from "./use-cases";
+import { createCatalogPort, createTransactionRepositoryPort } from "../infrastructure/persistence-config";
+import { CATALOG_PORT, PAYMENT_PROVIDER_PORT, STOCK_PORT, TRANSACTION_REPOSITORY_PORT } from "../application/tokens";
+import { CreateTransactionUseCase, GetCatalogUseCase, GetTransactionStatusUseCase } from "../application/use-cases";
 
 @Module({
   controllers: [CheckoutController],

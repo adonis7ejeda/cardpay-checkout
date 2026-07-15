@@ -1,4 +1,4 @@
-import type { CatalogPort, StockPort, TransactionRepositoryPort } from "./ports";
+import type { CatalogPort, StockPort, TransactionRepositoryPort } from "../application/ports";
 import { catalogStockTableName, createDynamoDbDocumentClient, transactionsTableName } from "./dynamodb-client";
 import { DynamoDbCatalogAdapter, DynamoDbTransactionRepository } from "./dynamodb-adapters";
 

@@ -1,8 +1,8 @@
 import { __resetMockKeychain } from "react-native-keychain";
 import type { CatalogItemDto, FakeCardInputDto } from "@cardpay/contracts";
-import { KeychainSecureStorage } from "./keychainStorage";
-import { checkoutActions, createCheckoutStore, loadCatalog, persistCheckout, selectCartTotals } from "./store";
-import type { ApiClient } from "./types";
+import { KeychainSecureStorage } from "./adapters/keychainStorage";
+import { checkoutActions, createCheckoutStore, loadCatalog, persistCheckout, selectCartTotals } from "./state/store";
+import type { ApiClient } from "./ports";
 
 const catalog: CatalogItemDto[] = [
   { id: "sku-1", name: "Wireless Headphones", description: "Noise-isolating audio", unitPrice: { amount: 120000, currency: "COP" }, stockAvailable: 4, purchasable: true }

@@ -1,5 +1,5 @@
 import { getGenericPassword, resetGenericPassword, setGenericPassword } from "react-native-keychain";
-import type { SecureStorageBoundary } from "./types";
+import type { SecureStorageBoundary } from "../ports";
 
 const SERVICE_PREFIX = "cardpay-checkout";
 

@@ -4,10 +4,10 @@ import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import type { PaymentAttemptDto } from "@cardpay/contracts";
 import request from "supertest";
-import { AppModule } from "./app.module";
-import { createDefaultPaymentProvider, DeterministicFakePaymentAdapter, EnvPaymentProviderAdapter, InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./adapters";
-import { PAYMENT_PROVIDER_PORT } from "./tokens";
-import { CreateTransactionUseCase } from "./use-cases";
+import { AppModule } from "./interface/app.module";
+import { createDefaultPaymentProvider, DeterministicFakePaymentAdapter, EnvPaymentProviderAdapter, InMemoryCatalogAdapter, InMemoryTransactionRepository } from "./infrastructure/adapters";
+import { PAYMENT_PROVIDER_PORT } from "./application/tokens";
+import { CreateTransactionUseCase } from "./application/use-cases";
 
 const attempt = (cardNumber = "4111111111111111"): PaymentAttemptDto => ({
   identity: { fullName: "Ada Lovelace", email: "ada@example.com" },

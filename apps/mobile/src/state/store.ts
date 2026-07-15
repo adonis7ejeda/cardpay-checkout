@@ -2,7 +2,7 @@ import { configureStore, createSlice, type PayloadAction } from "@reduxjs/toolki
 import { calculateCartTotals, nextCartAfterOutcome, validateFakeCard, validateIdentity } from "@cardpay/core";
 import type { CartItemDto, CatalogItemDto, CheckoutIdentityDto, FakeCardInputDto, PaymentAttemptDto, TransactionResultDto } from "@cardpay/contracts";
 import { loadCheckoutSnapshot, saveCheckoutSnapshot, toSafeSnapshot } from "./persistence";
-import type { ApiClient, PersistedCheckoutSnapshot, SecureStorageBoundary } from "./types";
+import type { ApiClient, PersistedCheckoutSnapshot, SecureStorageBoundary } from "../ports";
 
 export const INSTALLMENT_OPTIONS = [1, 3, 6, 12, 18, 24] as const;
 const EMPTY_FAKE_CARD: FakeCardInputDto = { cardholderName: "", number: "", expirationMonth: "", expirationYear: "", cvc: "" };

@@ -3,7 +3,7 @@ import configureServerlessExpress from "@codegenie/serverless-express";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Callback, Context, Handler } from "aws-lambda";
-import { AppModule } from "./app.module";
+import { AppModule } from "./interface/app.module";
 
 /**
  * AWS Lambda entrypoint that wraps the existing Nest/Express application with
