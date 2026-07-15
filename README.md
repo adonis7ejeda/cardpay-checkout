@@ -155,8 +155,21 @@ pnpm --filter ./packages/contracts test   # tsc --noEmit type-check
 pnpm --filter ./packages/core test        # 19 tests
 pnpm --filter ./apps/api test             # 80 tests, 8 suites
 pnpm --filter ./apps/mobile test          # 100 tests, 20 suites
-pnpm --filter ./apps/mobile test -- --coverage
 ```
+
+### Coverage results
+
+```bash
+pnpm --filter ./apps/mobile test -- --coverage
+pnpm --filter ./apps/api test -- --coverage
+```
+
+| Package | Statements | Branches | Functions | Lines |
+|---|---|---|---|---|
+| `apps/mobile` | 95.10% | 88.82% | 92.50% | 96.04% |
+| `apps/api` | 95.02% | 74.56% | 98.03% | 95.06% |
+
+`apps/mobile` enforces an 80% floor on all four metrics via `coverageThreshold` in `jest.config.cjs` (the test run fails below it). `apps/api` has no equivalent enforced gate: branch coverage (74.56%) sits below the 80% target on that one metric, concentrated in `adapters.ts`'s error/edge-case branches. Recorded here rather than hidden — a legitimate follow-up, not a false claim of full coverage.
 
 Other useful checks:
 
